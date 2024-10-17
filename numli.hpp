@@ -44,6 +44,19 @@ namespace cg {
 	using rgba = vec4;
 }
 
+namespace stats {
+	/**
+	 * Distribution base class
+	 */
+	class distribution {
+		/**
+		 * Samples the distribution
+		 */
+		virtual double operator()(void) {
+			return 0.0;
+		};
+	};
+}
 
 }
 
