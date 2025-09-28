@@ -17,9 +17,11 @@ is contained in its associated `.hpp` file and is accessible by its namespace.
 ## Status
 
 #### *Current:*
-* Working on implementing SIMD compatible $\mathbb{R}^n$ data type
+* Working on implementing SIMD compatible $\mathbb{R}^n$ and
+$\mathbb{R}^{n\times m}$ data types.
 
 #### *Complete:*
+* `restrict` support for MSVC and GCC compilers
 * Mathematical constants - π, e, ε (floating point epsilon)
 
 #### *Future:*

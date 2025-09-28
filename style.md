@@ -29,8 +29,9 @@ namespace style {
 // ************************************
 /// @struct DataCollection
 /// @brief brief description
+/// @tparam T buffer type
 /// @see related data defintions
-struct DataCollection  // CamelCase
+template<std::arithmetic T> struct DataCollection  // CamelCase
 {
   std::vector<color> data_vector;  ///< data stored on the heap
   const char*        name;         ///< for identification
@@ -40,18 +41,20 @@ struct DataCollection  // CamelCase
   /// Details or references of implementation here...
   void resizeBuffer(int size);
 }
+// ** DataCollection ******************
 .
 .
 .
 } // namespace style
 
-//===---------------------------------------------------------------------===//
+// ****************************************************************************
 #endif // #ifndef PATH_TO_FILE_HPP
 ```
 
 Generally follows the LLVM C++ coding standard in terms of practice, but with
 minor formatting differences. The use of unicode characters is encouraged to
-improve code clarity.
+improve code clarity - restrict to use of latin, greek, double-struck, and APL 
+glyphs only.
 
 ```
 Struct CamelCase   -> collection of data for an interface
@@ -63,7 +66,8 @@ void   camelCase() -> function
 
 ## Structure
 
-- Separate files into `.hpp` header files and `.cpp` implementation files
-- Use anonymous namespaces to encapsulate functions not exported by the interface
+- Include all implementation in a single `.hpp` file per module
+- Use concepts to enforce template requirements heavily
+- Use anonymous namespaces to encapsulate unexported functions in an interface
 - Prefer stuctures of arrays over arrays of structures
 - Flatten trees to avoid pointer chasing
