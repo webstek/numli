@@ -1,13 +1,17 @@
 // ****************************************************************************
 /// @file cg.hpp
 /// @author Kyle Webster
-/// @date 26 Sep 2025
+/// @version 0.1
+/// @date 27 Sep 2025
 /// @brief Numerics Library - Computer Graphics - @ref cg
 /// @details
 /// Collection of computer graphics structures and algorithms
 // ****************************************************************************
 #include "bra.hpp"
+#include <vector>
 #include <string>
+#include <sstream>
+#include <fstream>
 // ****************************************************************************
 
 namespace nl {
