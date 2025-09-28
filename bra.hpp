@@ -1,34 +1,45 @@
-/**************************************************************************//**
-* @file bra.hpp
-* @author Kyle Webster
-* @date 26 Sep 2025
-* @brief Numerics Library - Algebra @ref nl::bra
-* 
-* Collection of algebraic structures and algorithms
-******************************************************************************/
-
+// ****************************************************************************
+/// @file bra.hpp
+/// @author Kyle Webster
+/// @version 0.1
+/// @date 27 Sep 2025
+/// @brief Numerics Library - Algebra @ref bra
+/// @details
+/// Collection of algebraic structures and algorithms
+// ****************************************************************************
 #ifndef BRA_HPP
 #define BRA_HPP
-
-#include <cmath>
+// ** Includes ****************************************************************
+#include "numli.hpp"
 #include <cstdint>
+#include <stdfloat>
+// ****************************************************************************
 
-#include <vector>
-#include <fstream>
-#include <sstream>
-
-// The numli library namespace.
 namespace nl {
-namespace bra {
-// Contains:
-  template<uint32_t n, typename T> class NdReal;
-  template<typename T> class Vec;
-  template<typename T> class Mat;
-  double l2Squared(Vec<double>);
-  double l2(Vec<double>);
-
-// Classes:
-
+// ************************************
+/// @namespace bra
+/// @brief Algebraic data structures and algorithms
+/// @details
+/// Contents:
+///  * @ref ℝⁿ - a number in ℝⁿ with n and the storage type specified
+namespace bra
+{ // nl::bra
+  // **********************************
+  /// @struct ℝⁿ
+  /// @brief a number in ℝⁿ
+  /// @tparam n number of basis elements that square to 1
+  /// @tparam T storage type, default float64_t
+  /// @attention T must be one of std::floatXX_t types
+  /// @details
+  /// High performance element of ℝⁿ stored as type T. If AVX2 is available
+  /// it is stored aligned to 32 Bytes (AVX2 register size)
+  template<uint32_t n, typename T = std::float64_t> 
+  struct alignas(nl::simd<T>::alignment) ℝⁿ
+  {
+    T x[n];
+  };
+  
+  // ** Old Implementation ****************************************************
   template<uint32_t n, typename T = double>
   class NdReal {
     static_assert(std::is_arithmetic<T>::value, "T must arithmetic.");
