@@ -50,7 +50,8 @@ struct DataCollection  // CamelCase
 ```
 
 Generally follows the LLVM C++ coding standard in terms of practice, but with
-minor formatting differences.
+minor formatting differences. The use of unicode characters is encouraged to
+improve code clarity.
 
 ```
 Struct CamelCase   -> collection of data for an interface
