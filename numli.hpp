@@ -20,25 +20,43 @@
 /// @brief Numerics Library main module
 /// @details
 /// Contents:
+///  * @ref compiler - compatibility for MSC and GCC
 ///  * @ref simd - simd details
 ///  * @ref constants - mathematical constants
 namespace nl
 {
-  // ** SIMD ******************************************************************
+  // **************************************************************************
+  /// @name compiler
+  /// @brief defines macros depending on which compiler is being used
+
+  // ** restrict **********************
+  #if defined(__GNUC__)
+  #define restrict __restrict__
+  #elif defined(_MSC_VER)
+  #define restrict __restrict
+  #else
+  #define restrict
+  #endif
+
+  // **************************************************************************
   /// @name SIMD
   /// @brief simd support information/configuration
+
+  // ** avx2 support ******************
   #if defined(__AVX2__)
-    constexpr bool avx2 = true;
+  constexpr bool avx2 = true;
   #else
-    constexpr bool avx2 = false;
+  constexpr bool avx2 = false;
   #endif
+
   // **********************************
   /// @struct simd
   /// @brief simd information
   /// @tparam T storage type for alignment if avx2 is unavailable
   template<typename T> struct simd
   {
-    static constexpr size_t alignment = avx2 ? 32B : sizeof(T);
+    static constexpr size_t alignment  ///< for compile time simd data aligning
+      = avx2 ? 32B : sizeof(T);
   };
   // ** end of SIMD ***********************************************************
 
@@ -53,7 +71,7 @@ namespace nl
   template<typename T> inline constexpr T e     = std::numbers::e_v(T);
   template<typename T> inline constexpr T ε     = 
     std::numeric_limits<T>::epsilon();
-  // ** end of constants **************
+  // ** end of constants ******************************************************
 } // namespace nl
 
 
