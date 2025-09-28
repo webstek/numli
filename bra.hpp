@@ -11,6 +11,7 @@
 #define BRA_HPP
 // ** Includes ****************************************************************
 #include "numli.hpp"
+#include <concepts>
 #include <cstdint>
 #include <stdfloat>
 // ****************************************************************************
@@ -21,22 +22,50 @@ namespace nl {
 /// @brief Algebraic data structures and algorithms
 /// @details
 /// Contents:
-///  * @ref ℝⁿ - a number in ℝⁿ with n and the storage type specified
+///  * @ref ℝn - number in ℝⁿ, specifiable floating point storage type
+///  * @ref ℝnxm - number in ℝⁿˣᵐ, column-major order floating point storage
 namespace bra
 { // nl::bra
   // **********************************
-  /// @struct ℝⁿ
+  /// @struct ℝn
   /// @brief a number in ℝⁿ
   /// @tparam n number of basis elements that square to 1
   /// @tparam T storage type, default float64_t
-  /// @attention T must be one of std::floatXX_t types
+  /// @attention T must be floating point
   /// @details
-  /// High performance element of ℝⁿ stored as type T. If AVX2 is available
-  /// it is stored aligned to 32 Bytes (AVX2 register size)
-  template<uint32_t n, typename T = std::float64_t> 
-  struct alignas(nl::simd<T>::alignment) ℝⁿ
+  /// Element of ℝⁿ stored as type T. If AVX2 is available it is stored aligned
+  /// to 32 Bytes (AVX2 register size).
+  template<uint32_t n, std::floating_point T = std::float64_t> 
+  struct ℝn
   {
-    T x[n];
+    /// @name members
+    alignas(nl::simd<T>::alignment) T x[n]; ///< basis element coefficients
+
+    /// @name constructors
+    explicit ℝn( T const * restrict a ) { memcpy(x, a.x, n*sizeof(T)); }
+    explicit ℝn( T v ) { for (uint8_t i=0; i<n; ++i) x[i]=v; }
+    explicit ℝn( ℝn<n,T> const &a ) { memcpy(x, a.x, n*sizeof(T)); }
+
+    /// @name operators
+  };
+  // ** ℝn ****************************
+
+  // **********************************
+  /// @struct ℝnxm
+  /// @brief a number in ℝⁿˣᵐ
+  /// @tparam n number of rows
+  /// @tparam m number of columns
+  /// @tparam T floating point storage type
+  /// @attention T must be one of the std::floatXX_t types
+  /// @details
+  /// Element of ℝⁿˣᵐ stored as type T. If AVX2 is available it is stored 
+  /// aligned to 32 Bytes.
+  template<uint32_t n, uint32_t m, std::floating_point T = std::float64_t>
+  struct ℝnxm
+  {
+    /// @name members
+    constexpr uint64_t N = n*m;            ///< number of elements
+    alignas(nl::simd<T>::aligment) T x[N]; ///< basis element coefficients
   };
   
   // ** Old Implementation ****************************************************
