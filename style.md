@@ -13,8 +13,8 @@
 #ifndef PATH_TO_FILE_HPP
 #define PATH_TO_FILE_HPP
 // ** Includes ****************************************************************
-#include ""
 #include <>
+#include ""
 // ****************************************************************************
 
 // ************************************
@@ -62,6 +62,7 @@ Struct lowercase   -> data with behaviour
 Class  CamelCase   -> interface
 var_x  snake_case  -> variable
 void   camelCase() -> function
+const  ALL_CAPS    -> constant
 ```
 
 ## Structure
