@@ -12,6 +12,8 @@
 #include "numli.hpp"
 // ****************************************************************************
 
-// TEST_CASE("print SIMD mode") {std::println("SIMD Mode: {}:", nl::SIMD_MODE);}
+// same-length array comparison
+inline auto eq = [](const float* a, const float* b, int n) 
+  { return std::equal(a, a + n, b); };
 
 // ****************************************************************************
