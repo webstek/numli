@@ -10,7 +10,8 @@ is contained in its associated `.hpp` file and is accessible by its namespace.
 | Module            | namespace | required modules |
 |-------------------|-----------|------------------|
 | Numli             | `nl`      | None
-| Algebra           | `nl::bra` | Numli
+| SIMD              | `nl::simd`| Numli
+| Algebra           | `nl::bra` | Numli, SIMD
 | Computer Graphics | `nl::cg`  | Numli, Algebra
 
 ## Tests
@@ -20,13 +21,13 @@ Unit tests using [doctest](https://github.com/doctest/doctest?tab=readme-ov-file
 ## Status
 
 #### *Current:*
-* Working on implementing SIMD compatible $\mathbb{R}^n$ and
+* Started defining CG data types
+* Expand SIMD compatible $\mathbb{R}^n$ and
 $\mathbb{R}^{n\times m}$ data types.
 
-#### *Complete:*
-* `restrict` support for MSVC and GCC compilers
-* Mathematical constants - π, e, ε (floating point epsilon)
+#### *Recently Complete:*
+* Minimal working ℝn type
 
 #### *Future:*
-* Minimal working state of the Algebra module
+* Minimal working ℝnxm
 * Significant work on Computer Graphics module
