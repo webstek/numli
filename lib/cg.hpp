@@ -1,120 +1,160 @@
 // ****************************************************************************
 /// @file cg.hpp
 /// @author Kyle Webster
-/// @version 0.1
-/// @date 27 Sep 2025
+/// @version 0.2
+/// @date 22 Nov 2025
 /// @brief Numerics Library - Computer Graphics - @ref cg
 /// @details
 /// Collection of computer graphics structures and algorithms
 // ****************************************************************************
-#include "bra.hpp"
+#ifndef CG_HPP
+#define CG_HPP
+// ** Includes ****************************************************************
+#include <variant>
 #include <vector>
-#include <string>
-#include <sstream>
-#include <fstream>
+
+#include "bra.hpp"
 // ****************************************************************************
 
-namespace nl {
-namespace cg {
-// ** Contents ****************************************************************
-  class Mesh;
-  Mesh loadPLY(std::string);
+namespace nl 
+{ // ** nl ****************************
 
-// Aliases:
-  using vec3 = bra::NdReal<3, double>;      ///< 3d vector
-  using vec4 = bra::NdReal<4, double>;      ///< vector in the space PG2
-  using point3 = bra::NdReal<3, double>;    ///< 3d point
-  using point4 = bra::NdReal<4, double>;    ///< point in the space PG2
-  using color = bra::NdReal<3, uint8_t>;    ///< rgb colour (0 to 255)
+/// @namespace cg
+/// @brief Computer graphics data structures and algorithms
+/// @details
+/// Contains:
+///  * @ref data_structures
+namespace cg 
+{ // ** nl::cg ************************
 
-// Structs:
-  /// @brief Representation of a ray, a direction from a point in space.
-  typedef struct {
-    point3 x;
-    vec3 u;
-  } Ray;
+// ****************************************************************************
+/// @name data structures
 
-// Classes:
-  /// @brief Triangular mesh
-  class Mesh {
-  public:
-    // Members:
-    const uint32_t vertex_count;
-    const uint32_t face_count;
-    const bra::Mat<double> vertices;            /**< Vertex positions */
-    const bra::Mat<uint32_t> vertex_indices;    /**< Face vertex indices */
-  };
+// ****************************************************************************
+/// @name spectrums
 
-// Functions:
-  /// @brief Produce a Mesh object from a .ply file.
-  /// @param path Source file path.
-  /// @return mesh Triangular mesh data.
-  Mesh loadPLY(std::string path) {
-    // prep mesh fields
-    uint32_t vert_count = 0;
-    uint32_t face_count = 0;
-    bra::Mat<double> vertices (3, 1);
-    bra::Mat<uint32_t> indices (3, 1);
+template <bra::arithmetic T> struct rgb
+{
+  bra::ℝn<3,T> c;
+};
+// ** end of spectrums ********************************************************
 
-    // open file stream
-    std::ifstream ply;
-    ply.open(path);
-    if (!ply.is_open()) {
-      throw std::runtime_error("failed to open " + path);
-    } else {
-      // Header is first
-      bool is_vertex_line = false;
-      bool is_face_line = false;
-      std::string line;
-      while (std::getline(ply,line)) {
-        // make vector of words on the line
-        std::vector<std::string> words;
-        std::istringstream stream (line);
-        std::string word;
-        while (stream >> word) words.push_back(word);
 
-        // look for vertex count
-        if (words[0] == "element" && words[1] == "vertex") {
-          // convert ascii to uint32_t
-          vert_count = uint32_t(std::stoul(words[2]));
-        }
+// ****************************************************************************
+/// @name spatial
 
-        // look for face count
-        if (words[0] == "element" && words[1] == "face") {
-          // convert ascii to uint32_t
-          face_count = uint32_t(std::stoul(words[2]));
-        }
+struct vec 
+{
+  bra::ℝn<4,float> dir;
+};
+struct pnt
+{
+  bra::ℝn<4,float> pos;
+};
+struct ray 
+{
+  pnt   p;
+  vec   u;
+  float t;
+};
+struct transform 
+{
+  bra::ℝnxm<3,4,float> M;
+  bra::ℝnxm<3,4,float> M_inv;
+};
 
-        if (is_face_line) {
-          uint32_t elems[3] = {
-            std::stoul(words[1]),
-            std::stoul(words[2]),
-            std::stoul(words[3])};
-          indices.pushCol(elems);
-        }
+struct bvh {};
+// ** end of spatial **********************************************************
 
-        if (is_vertex_line) {
-          double elems[3] = {
-            std::stod(words[0]),
-            std::stod(words[1]),
-            std::stod(words[2])};
-          vertices.pushCol(elems);
-        }
 
-        // Determine if the next line in the header, vertex data, or triangle
-        //   vertex index data.
-        if (words[0] == "end_header") is_vertex_line = true;
-        if (vertices.cols() == vert_count) {
-          is_vertex_line = false;
-          is_face_line = true;
-        }
-      }
-      ply.close();
-    }
+// ****************************************************************************
+/// @name objects
 
-    // make the mesh to return
-    Mesh mesh {vert_count, face_count, vertices, indices};
-    return mesh;
-  }
-} // namespace cg
-} // namespace nl
+struct sphere 
+{
+  transform T;
+  float     radius;
+};
+struct plane 
+{
+  transform T;
+  float     length;
+};
+struct trimesh 
+{
+  transform             T;
+  std::vector<float>    V;
+  std::vector<uint32_t> F;
+};
+// ** end of objects **********************************************************
+
+
+// ****************************************************************************
+/// @name lights
+
+struct ambientlight 
+{
+  float irradiance = 0.f;
+};
+struct pointlight 
+{
+  float radiant_intensity = 0.f;
+  pnt   pos;
+};
+struct dirlight 
+{
+  float radiant_intensity = 0.f;
+  vec   dir;
+};
+struct spherelight : sphere 
+{
+  float radiance;
+};
+// ** end of lights ***********************************************************
+
+
+// ****************************************************************************
+/// @name materials
+
+struct lambertian 
+{
+
+};
+struct anisotropic {};
+// ** end of materials ********************************************************
+
+
+using Light = std::variant<ambientlight, pointlight, dirlight, spherelight>;
+using Object = std::variant<sphere, plane, trimesh>;
+using Material = std::variant<lambertian, anisotropic>;
+
+// ****************************************************************************
+
+
+// ****************************************************************************
+/// @name imaging
+
+template <bra::arithmetic T> struct image 
+{
+  size_t width, height;
+  std::vector<T> data;
+};
+
+struct texture {};
+// ** end of imaging **********************************************************
+
+
+// ****************************************************************************
+/// @name rendering
+struct camera 
+{
+  transform T;
+  float fov;
+};
+
+struct scene {};
+} // ** end of namespace cg ***********
+} // ** end of namespace nl ***********
+
+// ****************************************************************************
+#endif // #ifndef CG_HPP
