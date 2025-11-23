@@ -125,7 +125,7 @@ struct op_inner_prod : Operator<T, simd::SIMD_MODE>
   static constexpr T serial(T const (&a)[n], T const (&b)[n])
     {T sum = T(0); for (int i=0; i<n; i++) sum += a[i]*b[i]; return sum;}
   /// @todo write SIMD inner product  
-  static void SIMD(T &x, T const* restrict a, T const* restrict b, size_t n);
+  static void SIMD(T &x, T const* restrict a, T const* restrict b);
   constexpr T operator()(T const (&a)[n], T (&b)[n]) { serial(a,b); }
 };
 
@@ -187,7 +187,8 @@ template<uint32_t n, arithmetic T = std::float64_t> struct ℝn
   constexpr ℝn() {}
 
   /// @name operators
-  constexpr T& operator[](size_t i) { return elem[i]; }
+  constexpr T& operator[](size_t i)       noexcept { return elem[i]; }
+  constexpr T  operator[](size_t i) const noexcept { return elem[i]; }
 };
 // ** end ℝn **************************
 
@@ -230,8 +231,15 @@ template <uint32_t n, arithmetic T>
 constexpr ℝn<n,T> operator/(ℝn<n,T> const &x, ℝn<n,T> const &y)
   { return ℝn<n,T>(x,y,std::type_identity<op_div<T>>{}); }
 // ** end operators on ℝn and ℝnxm ****
+
 // ** end of Vector Spaces ****************************************************
 } // ** end of namespace bra **********
+
+// ************************************
+/// @name aliases
+using ℝ3 = bra::ℝn<3,float>;
+using ℝ4 = bra::ℝn<4,float>;
+
 } // ** end of namespace nl ***********
 
 // ****************************************************************************
