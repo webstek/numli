@@ -1,2 +1,5 @@
 # vscode config folder
 .vscode
+
+# build folder
+build
