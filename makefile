@@ -10,7 +10,7 @@ else
 AVX2_FLAGS :=
 endif
 
-CXXFLAGS := -std=c++23 -g -Wall -Wextra -I. -Ilib -Itests $(AVX2_FLAGS)
+CXXFLAGS := -std=c++23 -g -Wall -Wextra -I. -Isrc -Ivendor -Itests $(AVX2_FLAGS)
 
 SRC_DIR := tests
 BUILD_DIR := build
