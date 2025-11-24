@@ -14,10 +14,7 @@
 #include <vector>
 #include <string>
 
-#define TINYGLTF_IMPLEMENTATION
-#define STB_IMAGE_IMPLEMENTATION
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "tiny_gltf.h"
+#include "json.hpp"
 
 #include "bra.hpp"
 // ****************************************************************************
@@ -212,6 +209,8 @@ using Texture  = std::variant<valuetex, colourtex>;
 
 // ****************************************************************************
 /// @name rendering
+/// @brief rendering related structures
+
 struct camera 
 {
   transform T;
@@ -255,20 +254,15 @@ namespace intersect
 namespace load
 { // nl::cg::load *************************************************************
 
-bool loadGLTF(scene &scene, std::string fpath)
+/// @todo load .nls file
+bool loadNLS(scene &scene, std::string fpath)
 {
-  // load gltf to gltf representation
-  tinygltf::Model    model;
-  tinygltf::TinyGLTF loader;
-  std::string err, warn;
-  bool loaded = loader.LoadASCIIFromFile(&model, &err, &warn, fpath);
-  if (!warn.empty()) { std::println("Warning: {}", warn); }
-  if (!err.empty())  { std::println("Error: {}", err); return false; }
-  if (!loaded) { std::println("Failed to load gltf."); return false; }
-
-  // convert to internal format
-  return false;
+  
 }
+
+
+/// @todo load gltf node 
+bool loadGLTFNode(node *node, scene &scene, std::string fpath) {return false;}
 } // ** end of namespace load *************************************************
 
 } // ** end of namespace cg ***********
