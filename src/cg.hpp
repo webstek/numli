@@ -92,13 +92,54 @@ struct transform
   }
 
   /// @name member functions
-  static constexpr transform translate(ℝ3 x) 
+  static constexpr transform scale(ℝ3 const &x)
+  {
+    transform T;
+    for (int i=0;i<3;i++) { T.M(i,i)=x[i]; T.M_inv(i,i)=1.f/x[i]; }
+    return T;
+  }
+  static constexpr transform rotate(ℝ3 const &u, float degrees)
+  { // using Rodrigues' formula R(u,θ) = cosθI+(1-cosθ)*outer(u)+sinθ*skew(u)
+    transform T;
+    const float θ = radians(degrees);
+    const float cosθ = cosf32(θ);
+    const float sinθ = sinf32(θ);
+    T.M(0,0) = cosθ + (1-cosθ)*u[0]*u[0];
+    T.M(0,1) = (1-cosθ)*u[0]*u[1]-sinθ*u[2];
+    T.M(0,2) = (1-cosθ)*u[0]*u[2]+sinθ*u[1];
+    T.M(1,0) = (1-cosθ)*u[1]*u[0]+sinθ*u[2];
+    T.M(1,1) = cosθ + (1-cosθ)*u[1]*u[1];
+    T.M(1,2) = (1-cosθ)*u[1]*u[2]-sinθ*u[0];
+    T.M(2,0) = (1-cosθ)*u[2]*u[0]-sinθ*u[1];
+    T.M(2,1) = (1-cosθ)*u[2]*u[1]+sinθ*u[0];
+    T.M(2,2) = cosθ + (1-cosθ)*u[2]*u[2];
+
+    // replace θ with -θ for inverse
+    T.M_inv(0,0) = cosθ + (1-cosθ)*u[0]*u[0];
+    T.M_inv(0,1) = (1-cosθ)*u[0]*u[1]+sinθ*u[2];
+    T.M_inv(0,2) = (1-cosθ)*u[0]*u[2]-sinθ*u[1];
+    T.M_inv(1,0) = (1-cosθ)*u[1]*u[0]-sinθ*u[2];
+    T.M_inv(1,1) = cosθ + (1-cosθ)*u[1]*u[1];
+    T.M_inv(1,2) = (1-cosθ)*u[1]*u[2]+sinθ*u[0];
+    T.M_inv(2,0) = (1-cosθ)*u[2]*u[0]+sinθ*u[1];
+    T.M_inv(2,1) = (1-cosθ)*u[2]*u[1]-sinθ*u[0];
+    T.M_inv(2,2) = cosθ + (1-cosθ)*u[2]*u[2];
+    return T;
+  }
+  static constexpr transform translate(ℝ3 const &x) 
   { 
     transform T; 
     for (int i=0;i<3;i++) { T.M(i,3)=x[i]; T.M_inv(i,3)=-x[i]; } 
     return T;
   }
 };
+
+/// @brief compose transform T2 after T1
+/// @todo composition operator
+constexpr transform operator<<(transform const &T1, transform const &T2)
+{
+
+}
 // ** end of spatial **********************************************************
 
 
@@ -275,6 +316,24 @@ using json = nlohmann::json;
 template <bra::arithmetic T> void load(T &x, json const &j) {x=j.get<T>();}
 void loadℝ3(ℝ3 &x, json const &j) {for(int i=0;i<3;i++)x[i]=j[i].get<float>();}
 
+void loadTransform(transform &T, json const &j)
+{
+  ℝ3 _scale, _translate, _axis;
+  float _deg;
+  try { loadℝ3(_scale, j.at("scale")); } catch(...) { _scale=1.f; }
+  try { loadℝ3(_translate, j.at("translate")); } catch(...) { _translate=0.f; }
+  try 
+  { // try to load rotation
+    json rot = j.at("rotate"); 
+    loadℝ3(_axis, rot.at("axis")); 
+    load(_deg, rot.at("degrees")); 
+  } catch(...) { _axis={0.f,0.f,1.f}; _deg=0.f; }
+  auto scaling = transform::scale(_scale);
+  auto rotation = transform::rotate(_axis, _deg);
+  auto translation = transform::translate(_translate);
+  T = translation*rotation*scaling;
+}
+
 void loadCamera(camera &cam, json const &j) 
 {
   ℝ3 pos, look_at, up;
@@ -284,8 +343,8 @@ void loadCamera(camera &cam, json const &j)
   loadℝ3(look_at, j.at("look_at"));
   loadℝ3(up, j.at("up"));
   load(fov, j.at("fov"));
-  load(ar, j.at("fov"));
   load(width, j.at("width"));
+  try { load(ar, j.at("ar")); } catch(...) { ar=1.7778f; }
   cam.fov = fov;
   cam.width = width;
   cam.height = std::ceil(width/ar);
@@ -293,6 +352,21 @@ void loadCamera(camera &cam, json const &j)
   ℝ3 x = up^z;
   ℝ3 y = z^x;
   cam.T = transform(x,y,z,pos);
+}
+
+void loadLight(Light &light, json const &j)
+{
+
+}
+
+void loadObject(Object &obj, json const &j)
+{
+
+}
+
+void loadMaterial(Material &mat, json const &j)
+{
+
 }
 
 /// @todo load .nls file

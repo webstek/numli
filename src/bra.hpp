@@ -199,6 +199,10 @@ template<uint32_t n, arithmetic T = std::float64_t> struct ℝn
   /// @name operators
   constexpr T& operator[](size_t i)       noexcept { return elem[i]; }
   constexpr T  operator[](size_t i) const noexcept { return elem[i]; }
+  constexpr ℝn& operator=(T const (&a)[n]) noexcept
+    { copy(elem, a); return *this; }
+  constexpr ℝn& operator=(T v) noexcept
+    { for(uint32_t i=0;i<n;i++)elem[i]=v; return *this; }
 };
 // ** end ℝn **************************
 
@@ -253,6 +257,8 @@ constexpr ℝn<n,T> operator*(ℝn<n,T> const &x, ℝn<n,T> const &y)
 template <uint32_t n, arithmetic T>
 constexpr ℝn<n,T> operator/(ℝn<n,T> const &x, ℝn<n,T> const &y)
   { return ℝn<n,T>(x,y,std::type_identity<op_div<T>>{}); }
+
+/// @todo matrix multiplication
 
 /// @brief cross product in ℝ3
 template <arithmetic T>
