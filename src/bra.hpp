@@ -178,13 +178,23 @@ template<uint32_t n, arithmetic T = std::float64_t> struct ℝn
   alignas(simd::simd<T>::alignment) T elem[n]; ///< basis coefficients
 
   /// @name constructors
-  constexpr explicit ℝn( T const restrict (&a)[n] ) { nl::copy(elem, a); }
-  constexpr explicit ℝn( ℝn<n,T> const &x ) { nl::copy(elem, x.elem); }
+  constexpr explicit ℝn( T const restrict (&a)[n] ) { copy(elem, a); }
+  constexpr explicit ℝn( ℝn<n,T> const &x ) { copy(elem, x.elem); }
+  constexpr explicit ℝn( ℝn<n,T> const *x ) { copy(elem, x->elem); }
   constexpr explicit ℝn( T v ) { for (uint32_t i=0;i<n;i++) elem[i]=v; }
   template <binary_operator<T> Op> constexpr explicit ℝn(
     ℝn<n,T> const &x, ℝn<n,T> const &y, std::type_identity<Op>)
     { opBinaryArray<n,T,Op>(elem, x.elem, y.elem); }
   constexpr ℝn() {}
+
+  /// @name member functions
+  constexpr T l2() const 
+    {T sum=T(0); for(uint32_t i=0;i<n;i++)sum+=elem[i]; return std::sqrt(sum);}
+  constexpr void normalize()
+    { T len=l2(); for (uint32_t i=0;i<n;i++) elem[i]/=len; }
+  constexpr ℝn normalized() const { ℝn x(this); x.normalize(); return x; }
+  constexpr void negate() { for (uint32_t i=0;i<n;i++) elem[i]*=-1; }
+  constexpr ℝn negated() { ℝn x(this); x.negate(); return x; }
 
   /// @name operators
   constexpr T& operator[](size_t i)       noexcept { return elem[i]; }
@@ -210,14 +220,27 @@ struct ℝnxm
   /// @name constructors
   constexpr explicit ℝnxm( T const * restrict (&a)[n] ) {nl::copy(elem, a);}
   explicit ℝnxm( ℝn<n,T> const &x ) { nl::copy(elem,x.elem); }
-  explicit ℝnxm( T v ) 
-    { for(uint32_t i=0;i<n;i++) for(uint32_t j=0;j<m;j++) elem[i*m+j]=v; }
+  explicit ℝnxm( T v ) { for (uint64_t k=0;k<N;k++) elem[k]=v; }
   ℝnxm() {}
+
+  /// @name member functions
+  constexpr void identity() 
+  {
+    for (uint64_t i=0;i<n;i++) for (uint64_t j=0;j<m;j++) 
+      if (i==j) {elem[i*m+j]=T(1);} else {elem[i*m+j]=T(0);}
+  }
+
+  /// @name operators
+  constexpr T& operator()(size_t i, size_t j) noexcept 
+    { return elem[i*m+j]; }
+  constexpr T  operator()(size_t i, size_t j) const noexcept
+    { return elem[i*m+j]; }
 };
 // ** end ℝnxm ************************
 
 // ** Operators on ℝn and ℝnxm ********
 
+/// @name binary operators
 template <uint32_t n, arithmetic T>
 constexpr ℝn<n,T> operator+(ℝn<n,T> const &x, ℝn<n,T> const &y)
   { return ℝn<n,T>(x,y,std::type_identity<op_add<T>>{}); }
@@ -230,6 +253,12 @@ constexpr ℝn<n,T> operator*(ℝn<n,T> const &x, ℝn<n,T> const &y)
 template <uint32_t n, arithmetic T>
 constexpr ℝn<n,T> operator/(ℝn<n,T> const &x, ℝn<n,T> const &y)
   { return ℝn<n,T>(x,y,std::type_identity<op_div<T>>{}); }
+
+/// @brief cross product in ℝ3
+template <arithmetic T>
+constexpr ℝn<3,T> operator^(ℝn<3,T> const &x, ℝn<3,T> const &y)
+  { return {x[1]*y[2]-x[2]*y[1], x[2]*y[0]-x[0]*y[2], x[0]*y[1]-x[1]*y[0]}; }
+
 // ** end operators on ℝn and ℝnxm ****
 
 // ** end of Vector Spaces ****************************************************
@@ -239,6 +268,7 @@ constexpr ℝn<n,T> operator/(ℝn<n,T> const &x, ℝn<n,T> const &y)
 /// @name aliases
 using ℝ3 = bra::ℝn<3,float>;
 using ℝ4 = bra::ℝn<4,float>;
+using ℝ3x4 = bra::ℝnxm<3,4,float>;
 
 } // ** end of namespace nl ***********
 

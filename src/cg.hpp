@@ -80,8 +80,24 @@ struct basis
 };
 struct transform
 {
-  bra::ℝnxm<3,4,float> M;
-  bra::ℝnxm<3,4,float> M_inv;
+  ℝ3x4 M;
+  ℝ3x4 M_inv;
+
+  /// @name constructors
+  constexpr transform() { M.identity(); M_inv.identity(); }
+  constexpr transform(ℝ3 const &x, ℝ3 const &y, ℝ3 const &z, ℝ3 const &p)
+  {
+    for (int i=0;i<3;i++) {M(i,0)=x[i]; M(i,1)=y[i]; M(i,2)=z[i]; M(i,3)=p[i];}
+    /// @todo compute inverse
+  }
+
+  /// @name member functions
+  static constexpr transform translate(ℝ3 x) 
+  { 
+    transform T; 
+    for (int i=0;i<3;i++) { T.M(i,3)=x[i]; T.M_inv(i,3)=-x[i]; } 
+    return T;
+  }
 };
 // ** end of spatial **********************************************************
 
@@ -215,6 +231,7 @@ struct camera
 {
   transform T;
   float fov;
+  uint width, height;
 };
 
 struct node
@@ -253,11 +270,35 @@ namespace intersect
 /// @brief loading utilities
 namespace load
 { // nl::cg::load *************************************************************
+using json = nlohmann::json;
+
+template <bra::arithmetic T> void load(T &x, json const &j) {x=j.get<T>();}
+void loadℝ3(ℝ3 &x, json const &j) {for(int i=0;i<3;i++)x[i]=j[i].get<float>();}
+
+void loadCamera(camera &cam, json const &j) 
+{
+  ℝ3 pos, look_at, up;
+  float fov, ar;
+  uint width;
+  loadℝ3(pos, j.at("pos"));
+  loadℝ3(look_at, j.at("look_at"));
+  loadℝ3(up, j.at("up"));
+  load(fov, j.at("fov"));
+  load(ar, j.at("fov"));
+  load(width, j.at("width"));
+  cam.fov = fov;
+  cam.width = width;
+  cam.height = std::ceil(width/ar);
+  ℝ3 z = (pos-look_at).normalized();
+  ℝ3 x = up^z;
+  ℝ3 y = z^x;
+  cam.T = transform(x,y,z,pos);
+}
 
 /// @todo load .nls file
 bool loadNLS(scene &scene, std::string fpath)
 {
-  
+
 }
 
 
