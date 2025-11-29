@@ -13,6 +13,7 @@
 #include <variant>
 #include <vector>
 #include <string>
+#include <fstream>
 
 #include "json.hpp"
 
@@ -39,12 +40,39 @@ using meshidx     = uint32_t;
 // ****************************************************************************
 /// @name data structures
 
+template<typename T>
+concept named = requires(T t) {{t.name}->std::convertible_to<std::string>;};
+inline std::string getName(const named auto &x) { return x.name; }
+template<typename... Ts>
+inline std::string getName(const std::variant<Ts...> &v) {
+  return std::visit([](auto const &x) { return x.name; }, v);
+}
+/// @brief list class
+/// @warning requires elements to have a public name member
+template <typename T>
+struct list : std::vector<T>
+{
+  size_t idxOf(std::string const &name) const
+  {
+    size_t N = this->size();
+    for (size_t i=0; i<N; i++) 
+      { if (getName(this->at(i)) == name) return i; }
+    throw std::runtime_error("Item not found in list.");
+  }
+  T& find(std::string const &name) { return this->at(idxOf(name)); }
+  const T& find(std::string const &name) const {return this->at(idxOf(name));}
+};
+
+
 // ****************************************************************************
 /// @name spectrums
 
 template <bra::arithmetic T> struct rgb
 {
   bra::ℝn<3,T> c;
+  constexpr rgb() {}
+  constexpr rgb(T v) {c[0]=v; c[1]=v; c[2]=v;}
+  constexpr rgb& operator=(T v) {c[0]=v; c[1]=v; c[2]=v; return *this;}
 };
 using sRGB   = rgb<uint8_t>;
 using linRGB = rgb<float>;
@@ -80,8 +108,8 @@ struct basis
 };
 struct transform
 {
-  ℝ3x4 M;
-  ℝ3x4 M_inv;
+  ℝ4x4 M;
+  ℝ4x4 M_inv;
 
   /// @name constructors
   constexpr transform() { M.identity(); M_inv.identity(); }
@@ -138,7 +166,10 @@ struct transform
 /// @todo composition operator
 constexpr transform operator<<(transform const &T1, transform const &T2)
 {
-
+  transform T;
+  T.M = T2.M*T1.M;
+  T.M_inv = T1.M_inv*T2.M_inv;
+  return T;
 }
 // ** end of spatial **********************************************************
 
@@ -207,33 +238,51 @@ struct trimesh
 
 struct ambientlight 
 {
-  float irradiance = 0.f;
+  linRGB irradiance;
 };
 struct pointlight 
 {
-  float radiant_intensity = 0.f;
+  linRGB radiant_intensity;
   pnt   pos;
 };
 struct dirlight 
 {
-  float radiant_intensity = 0.f;
+  linRGB radiant_intensity;
   vec   dir;
 };
 struct spherelight : sphere 
 {
-  float radiance;
+  linRGB radiance;
 };
 // ** end of lights ***********************************************************
 
 
 // ****************************************************************************
 /// @name materials
+enum MaterialType {NONE, LAMBERTIAN, BLINN, MICROFACET};
+constexpr MaterialType str2mat(std::string const &s)
+{
+  if (s=="lambertian") return LAMBERTIAN;
+  if (s=="blinn")      return BLINN;
+  if (s=="microfacet") return MICROFACET;
+  return NONE;
+}
 
 struct lambertian 
 {
-  linRGB Kd;
+  std::string name;
+  linRGB albedo;
 };
-struct anisotropic {};
+struct blinn 
+{
+  std::string name;
+  linRGB Kd, Ks, Kt, Le, reflect, transmit;
+  float α, ior;
+};
+struct microfacet 
+{
+  std::string name;
+};
 // ** end of materials ********************************************************
 
 
@@ -259,7 +308,7 @@ using colourtex = texture<linRGB>;
 using Light    = std::variant<ambientlight, pointlight, dirlight, spherelight>;
 using Object   = std::variant<sphere, plane, trimesh>;
 using Mesh     = std::variant<trimeshdata>;
-using Material = std::variant<lambertian, anisotropic>;
+using Material = std::variant<lambertian, blinn, microfacet>;
 using Texture  = std::variant<valuetex, colourtex>;
 // ****************************************************************************
 
@@ -291,11 +340,12 @@ struct scene
   bvh<Object> obvh;
 
   // shared storage
-  std::vector<Object>   objects;
-  std::vector<Mesh>     meshes;
-  std::vector<Material> materials;
-  std::vector<Light*>   lights;
-  std::vector<Texture>  textures;
+  list<Object>   objects;
+  list<Mesh>     meshes;
+  list<Material> materials;
+  list<Texture>  textures;
+  list<Light>    ideal_lights;
+  std::vector<Light*> lights;
 };
 // ** end of data structures **************************************************
 
@@ -313,10 +363,13 @@ namespace load
 { // nl::cg::load *************************************************************
 using json = nlohmann::json;
 
-template <bra::arithmetic T> void load(T &x, json const &j) {x=j.get<T>();}
-void loadℝ3(ℝ3 &x, json const &j) {for(int i=0;i<3;i++)x[i]=j[i].get<float>();}
-
-void loadTransform(transform &T, json const &j)
+// ************************************
+/// @name data loading
+template <bra::arithmetic T> inline void load(T &x, json const &j) 
+  {x=j.get<T>();}
+inline void loadℝ3(ℝ3 &x, json const &j) 
+  {for(int i=0;i<3;i++)x[i]=j[i].get<float>();}
+inline void loadTransform(transform &T, json const &j)
 {
   ℝ3 _scale, _translate, _axis;
   float _deg;
@@ -331,10 +384,13 @@ void loadTransform(transform &T, json const &j)
   auto scaling = transform::scale(_scale);
   auto rotation = transform::rotate(_axis, _deg);
   auto translation = transform::translate(_translate);
-  T = translation*rotation*scaling;
+  T = scaling << rotation << translation;
 }
+// ************************************
 
-void loadCamera(camera &cam, json const &j) 
+// ************************************
+/// @brief loads a camera
+inline void loadCamera(camera &cam, json const &j) 
 {
   ℝ3 pos, look_at, up;
   float fov, ar;
@@ -344,7 +400,7 @@ void loadCamera(camera &cam, json const &j)
   loadℝ3(up, j.at("up"));
   load(fov, j.at("fov"));
   load(width, j.at("width"));
-  try { load(ar, j.at("ar")); } catch(...) { ar=1.7778f; }
+  try { load(ar, j.at("ar")); } catch(...) { ar=1.7778f; } // default 16:9
   cam.fov = fov;
   cam.width = width;
   cam.height = std::ceil(width/ar);
@@ -353,31 +409,160 @@ void loadCamera(camera &cam, json const &j)
   ℝ3 y = z^x;
   cam.T = transform(x,y,z,pos);
 }
+// ************************************
 
-void loadLight(Light &light, json const &j)
+// ************************************
+/// @name light loading
+
+inline void loadAmbientLight(ambientlight &l, json const &j) 
+  { linRGB irrad; loadℝ3(irrad.c, j.at("irradiance")); l.irradiance = irrad;}
+/// @todo
+inline void loadPointLight(pointlight &l, json const &j) {}
+/// @todo
+inline void loadDirLight(dirlight &l, json const &j) {}
+inline void loadSphereLight(spherelight &l, json const &j) 
 {
-
+  transform T;
+  linRGB radiance;
+  loadTransform(T, j.at("transform"));
+  loadℝ3(radiance.c, j.at("radiance"));
+  l.radiance = radiance;
+  l.T = T;
 }
-
-void loadObject(Object &obj, json const &j)
+inline void loadLight(Light &light, json const &j)
 {
-
+  std::visit(
+    Overload {
+      [j](ambientlight &l){ loadAmbientLight(l, j); },
+      [j](pointlight &l){ loadPointLight(l, j); },
+      [j](dirlight &l){ loadDirLight(l, j); },
+      [j](spherelight &l){ loadSphereLight(l, j); }},
+    light);
 }
+/// @todo
+inline void loadLights() {}
+// ************************************
 
-void loadMaterial(Material &mat, json const &j)
+// ************************************
+/// @name object loading
+
+/// @todo
+inline void loadGroup() {}
+inline void loadSphere(sphere &s, json const &j, list<Material> const &mats)
 {
-
+  transform T;
+  loadTransform(T, j.at("transform"));
+  s.T = T;
+  s.mat = mats.idxOf(j.at("material").get<std::string>());
 }
+inline void loadPlane(plane &p, json const &j, list<Material> const &mats) {}
+/// @todo
+inline void loadTriMesh(trimesh &m, json const &j, list<Material> const &mats)
+{}
 
-/// @todo load .nls file
-bool loadNLS(scene &scene, std::string fpath)
+inline void loadObject(Object &obj, json const &j, list<Material> const &mats)
 {
-
+  std::visit(
+    Overload {
+      [&](sphere &s){ loadSphere(s, j, mats); },
+      [&](plane &p){ loadPlane(p, j, mats); },
+      [&](trimesh &m){ loadTriMesh(m, j, mats); }},
+    obj);
 }
+inline void loadObjects(list<Object> objs, json const &j)
+{
+  size_t n_objs = j.size();
+  for (size_t i=0; i<n_objs;i++)
+  {
+    auto j_obj = j[i];
+  }
+}
+// ************************************
 
+// ************************************
+/// @name material loading
+
+inline void loadLambertian(lambertian &m, json const &j)
+{
+  linRGB albedo;
+  loadℝ3(albedo.c, j.at("albedo"));
+  m.albedo = albedo;
+}
+inline void loadBlinn(blinn &m, json const &j)
+{
+  linRGB Kd, Ks, Kt, Le, reflect, transmit;
+  float alpha, ior;
+  try {loadℝ3(Kd.c, j.at("Kd"));} catch(...) {Kd.c = 0.f;}
+  try {loadℝ3(Ks.c, j.at("Ks"));} catch(...) {Ks.c = 0.f;}
+  try {loadℝ3(Kt.c, j.at("Kt"));} catch(...) {Kt.c = 0.f;}
+  try {loadℝ3(Le.c, j.at("Le"));} catch(...) {Le.c = 0.f;}
+  try {loadℝ3(reflect.c, j.at("reflect"));} catch(...) {reflect.c = 0.f;}
+  try {loadℝ3(transmit.c, j.at("transmit"));} catch(...) {transmit.c = 0.f;}
+  try {load(alpha, j.at("glossiness"));} catch(...) {alpha = 1024;}
+  try {load(ior, j.at("ior"));} catch(...) {ior=1.54;}
+  m.Kd = Kd;
+  m.Ks = Ks;
+  m.Kt = Kt;
+  m.Le = Le;
+  m.reflect = reflect;
+  m.transmit = transmit;
+  m.α = alpha;
+  m.ior = ior;
+}
+/// @todo
+inline void loadMicrofacet(microfacet &m, json const &j) {}
+
+inline void loadMaterial(Material &mat, json const &j)
+{
+  std::visit(
+    Overload {
+      [&](lambertian &m){ loadLambertian(m, j); },
+      [&](blinn &m){ loadBlinn(m, j); },
+      [&](microfacet &m){ loadMicrofacet(m, j); }},
+    mat);
+}
+inline void loadMaterials(list<Material> &mats, json const &j)
+{
+  size_t n_mats = j.size();
+  for (size_t i=0; i<n_mats; i++)
+  {
+    auto j_mat = j[i];
+    std::string name = j_mat.at("name").get<std::string>();
+    auto type = str2mat(j_mat.at("type").get<std::string>());
+    switch (type)
+    {
+    case LAMBERTIAN:{lambertian l; loadLambertian(l,j_mat); mats.push_back(l);}
+    case BLINN:{blinn b; loadBlinn(b,j_mat); mats.push_back(b);}
+    case MICROFACET:{microfacet m; loadMicrofacet(m,j_mat); mats.push_back(m);}
+    }
+  }
+}
+// ************************************
 
 /// @todo load gltf node 
-bool loadGLTFNode(node *node, scene &scene, std::string fpath) {return false;}
+inline void loadGLTFNode(node *node, scene &scene, std::string fpath) {}
+
+/// @brief load scene from file
+/// @param scene scene to put data in
+/// @param fpath path to file to load
+/// @return true on successful loading, false otherwise
+inline bool loadNLS(scene &scene, std::string fpath)
+{
+  std::ifstream file(fpath);
+  if (!file.is_open()) 
+    {throw std::runtime_error("Could no open file."); return false;}
+  json j;
+  file >> j;
+
+  loadCamera(scene.cam, j.at("camera"));
+  loadMaterials(scene.materials, j.at("materials"));
+  loadObjects(scene.objects, j.at("objects"));
+  loadLights(scene.lights, scene.ideal_lights, scene.objects, j.at("lights"));
+  return true;
+}
+
+
+
 } // ** end of namespace load *************************************************
 
 } // ** end of namespace cg ***********

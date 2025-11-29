@@ -61,6 +61,14 @@ namespace nl
     copy_impl(dst, src, 
       std::integral_constant<bool, std::is_constant_evaluated()>{});
   }
+  // **********************************
+
+  // ** overload **********************
+  /// @brief pass to std::visit with functions to resolve the std::variant
+  template<class... Fs> struct Overload : Fs... { using Fs::operator()...; };
+  template<class... Fs> Overload(Fs...) -> Overload<Fs...>;
+  // **********************************
+
   // ** end of utilities ******************************************************
 
   // **************************************************************************

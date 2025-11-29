@@ -202,7 +202,7 @@ template<uint32_t n, arithmetic T = std::float64_t> struct ℝn
   constexpr ℝn& operator=(T const (&a)[n]) noexcept
     { copy(elem, a); return *this; }
   constexpr ℝn& operator=(T v) noexcept
-    { for(uint32_t i=0;i<n;i++)elem[i]=v; return *this; }
+    { for (uint32_t i=0;i<n;i++) elem[i]=v; return *this; }
 };
 // ** end ℝn **************************
 
@@ -239,29 +239,45 @@ struct ℝnxm
     { return elem[i*m+j]; }
   constexpr T  operator()(size_t i, size_t j) const noexcept
     { return elem[i*m+j]; }
+  constexpr ℝnxm& operator=(T const (&a)[N]) noexcept
+    { copy(elem, a); return *this; }
+  constexpr ℝnxm& operator=(T v) noexcept
+    { for (uint64_t k=0;k<N;k++) elem[k]=v; return *this; }
 };
 // ** end ℝnxm ************************
 
 // ** Operators on ℝn and ℝnxm ********
 
 /// @name binary operators
-template <uint32_t n, arithmetic T>
+template<uint32_t n, arithmetic T>
 constexpr ℝn<n,T> operator+(ℝn<n,T> const &x, ℝn<n,T> const &y)
   { return ℝn<n,T>(x,y,std::type_identity<op_add<T>>{}); }
-template <uint32_t n, arithmetic T>
+template<uint32_t n, arithmetic T>
 constexpr ℝn<n,T> operator-(ℝn<n,T> const &x, ℝn<n,T> const &y)
   { return ℝn<n,T>(x,y,std::type_identity<op_sub<T>>{}); }
-template <uint32_t n, arithmetic T>
+template<uint32_t n, arithmetic T>
 constexpr ℝn<n,T> operator*(ℝn<n,T> const &x, ℝn<n,T> const &y)
   { return ℝn<n,T>(x,y,std::type_identity<op_mul<T>>{}); }
-template <uint32_t n, arithmetic T>
+template<uint32_t n, arithmetic T>
 constexpr ℝn<n,T> operator/(ℝn<n,T> const &x, ℝn<n,T> const &y)
   { return ℝn<n,T>(x,y,std::type_identity<op_div<T>>{}); }
 
-/// @todo matrix multiplication
+/// @todo simd matrix multiplication
+  template<uint32_t n, uint32_t K, uint32_t m, arithmetic T>
+constexpr ℝnxm<n,m,T> operator*(ℝnxm<n,K,T> const &X, ℝnxm<K,m,T> const &Y)
+{
+  ℝnxm<n,m,T> A;
+  for (uint32_t i=0;i<n;i++) for (uint32_t j=0;j<m;j++) 
+  {
+    T sum = 0.f;
+    for (uint32_t k=0;k<K;k++) { sum += X.elem[i*K+k]*Y.elem[k*m+j]; }
+    A.elem[i*m+j] = sum;
+  }
+  return A;
+}
 
 /// @brief cross product in ℝ3
-template <arithmetic T>
+template<arithmetic T>
 constexpr ℝn<3,T> operator^(ℝn<3,T> const &x, ℝn<3,T> const &y)
   { return {x[1]*y[2]-x[2]*y[1], x[2]*y[0]-x[0]*y[2], x[0]*y[1]-x[1]*y[0]}; }
 
@@ -274,7 +290,7 @@ constexpr ℝn<3,T> operator^(ℝn<3,T> const &x, ℝn<3,T> const &y)
 /// @name aliases
 using ℝ3 = bra::ℝn<3,float>;
 using ℝ4 = bra::ℝn<4,float>;
-using ℝ3x4 = bra::ℝnxm<3,4,float>;
+using ℝ4x4 = bra::ℝnxm<4,4,float>;
 
 } // ** end of namespace nl ***********
 
