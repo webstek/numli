@@ -82,7 +82,7 @@ namespace nl
   template<typename T> constexpr T e     = std::numbers::e_v<T>;
   template<typename T> constexpr T ε     = 
     std::numeric_limits<T>::epsilon();
-  template<typename T> constexpr T radians(T deg) {return deg*π/T(180);}
+  template<typename T> constexpr T radians(T deg) {return deg*π<T>/T(180);}
   // ** end of constants ******************************************************
 } // ** end of namespace nl ***********
 

@@ -11,6 +11,7 @@ AVX2_FLAGS :=
 endif
 
 CXXFLAGS := -std=c++23 -g -Wall -Wextra -I. -Isrc -Ivendor -Itests $(AVX2_FLAGS)
+CXXFLAGS += -Wno-deprecated-literal-operator
 
 SRC_DIR := tests
 BUILD_DIR := build

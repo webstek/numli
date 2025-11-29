@@ -182,6 +182,11 @@ template<uint32_t n, arithmetic T = std::float64_t> struct ℝn
   constexpr explicit ℝn( ℝn<n,T> const &x ) { copy(elem, x.elem); }
   constexpr explicit ℝn( ℝn<n,T> const *x ) { copy(elem, x->elem); }
   constexpr explicit ℝn( T v ) { for (uint32_t i=0;i<n;i++) elem[i]=v; }
+  constexpr ℝn(std::initializer_list<T> init)
+  {
+    auto it=init.begin(); 
+    for (uint32_t i=0; i<n && it!=init.end(); i++,it++) {elem[i]=*it;}
+  }
   template <binary_operator<T> Op> constexpr explicit ℝn(
     ℝn<n,T> const &x, ℝn<n,T> const &y, std::type_identity<Op>)
     { opBinaryArray<n,T,Op>(elem, x.elem, y.elem); }
