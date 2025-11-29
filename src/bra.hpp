@@ -197,9 +197,9 @@ template<uint32_t n, arithmetic T = std::float64_t> struct ℝn
     {T sum=T(0); for(uint32_t i=0;i<n;i++)sum+=elem[i]; return std::sqrt(sum);}
   constexpr void normalize()
     { T len=l2(); for (uint32_t i=0;i<n;i++) elem[i]/=len; }
-  constexpr ℝn normalized() const { ℝn x(this); x.normalize(); return x; }
+  constexpr ℝn normalized() const {ℝn x(this); x.normalize(); return ℝn(x.elem);}
   constexpr void negate() { for (uint32_t i=0;i<n;i++) elem[i]*=-1; }
-  constexpr ℝn negated() { ℝn x(this); x.negate(); return x; }
+  constexpr ℝn negated() { ℝn x(this); x.negate(); return ℝn(x.elem); }
 
   /// @name operators
   constexpr T& operator[](size_t i)       noexcept { return elem[i]; }

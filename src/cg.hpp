@@ -67,13 +67,13 @@ struct list : std::vector<T>
   T* find(std::string const &name) 
   { 
     size_t idx = idxOf(name);
-    if (idx!=this->size()) { return this->at(idxOf(name)); }
+    if (idx!=this->size()) { return &this->at(idxOf(name)); }
     return nullptr;
   }
   T const* find(std::string const &name) const 
   {
     size_t idx=idxOf(name);
-    if (idx!=this->size()) { return this->at(idxOf(name)); }
+    if (idx!=this->size()) { return &this->at(idxOf(name)); }
     return nullptr;
   }
 };
@@ -216,12 +216,11 @@ struct triangle
 struct vertex 
 {
   vec n;
-
 };
 template <typename T> struct bvh {};
 struct trimeshdata
 {
-  bvh<triangle>         bvh;
+  bvh<triangle>         _bvh;
   std::vector<ℝ3>       V;
   std::vector<uint32_t> F;
 };
@@ -229,13 +228,14 @@ struct trimeshdata
 
 // ************************************
 /// @name object instances
-enum ObjectType {GROUP, SPHERE, PLANE, TRIMESH};
+enum class ObjectType {GROUP, SPHERE, PLANE, TRIMESH};
 constexpr ObjectType str2obj(std::string s)
 {
   if (s=="group")   return ObjectType::GROUP;
   if (s=="sphere")  return ObjectType::SPHERE;
   if (s=="plane")   return ObjectType::PLANE;
   if (s=="trimesh") return ObjectType::TRIMESH;
+  throw std::domain_error("No corresponding ObjectType.");
 }
 
 struct sphere : item
@@ -260,13 +260,14 @@ struct trimesh : item
 
 // ****************************************************************************
 /// @name lights
-enum LightType {AMBIENT, POINT, DIR, SPHERE};
+enum class LightType {AMBIENT, POINT, DIR, SPHERE};
 constexpr LightType str2light(std::string s)
 {
   if (s=="ambient")   return LightType::AMBIENT;
   if (s=="point")     return LightType::POINT;
   if (s=="direction") return LightType::DIR;
   if (s=="sphere")    return LightType::SPHERE;
+  throw std::domain_error("No corresponding LightType.");
 }
 
 struct ambientlight : item
@@ -286,20 +287,20 @@ struct dirlight : item
 struct spherelight : item
 {
   linRGB radiance;
-  sphere sphere;
+  sphere _sphere;
 };
 // ** end of lights ***********************************************************
 
 
 // ****************************************************************************
 /// @name materials
-enum MaterialType {NONE, LAMBERTIAN, BLINN, MICROFACET};
+enum class MaterialType {NONE, LAMBERTIAN, BLINN, MICROFACET};
 constexpr MaterialType str2mat(std::string const &s)
 {
   if (s=="lambertian") return MaterialType::LAMBERTIAN;
   if (s=="blinn")      return MaterialType::BLINN;
   if (s=="microfacet") return MaterialType::MICROFACET;
-  return NONE;
+  return MaterialType::NONE;
 }
 
 struct lambertian : item
@@ -444,9 +445,9 @@ inline void loadCamera(camera &cam, json const &j)
 inline void loadAmbientLight(ambientlight &l, json const &j) 
   {linRGB irrad; loadℝ3(irrad.c, j.at("irradiance")); l.irradiance = irrad;}
 /// @todo
-inline void loadPointLight(pointlight &l, json const &j) {}
+inline void loadPointLight(pointlight &l, json const &j);
 /// @todo
-inline void loadDirLight(dirlight &l, json const &j) {}
+inline void loadDirLight(dirlight &l, json const &j);
 inline void loadSphereLight(
   spherelight &l, 
   json const &j, 
@@ -461,7 +462,7 @@ inline void loadSphereLight(
   if (mat==mats.size()) {emitter m = {name, radiance}; mats.push_back(m);}
   s.mat = mat;
   l.radiance = radiance;
-  l.sphere = s;
+  l._sphere = s;
 }
 /// @todo point and direction light loading
 inline void loadLights(
@@ -483,15 +484,17 @@ inline void loadLights(
         loadAmbientLight(l, j_light); 
         scene.ideal_lights.push_back(l);
         scene.lights.push_back(&scene.ideal_lights.back());
+        break;
       }
-    case LightType::POINT: {}
-    case LightType::DIR: {}
+    case LightType::POINT: break;
+    case LightType::DIR: break;
     case LightType::SPHERE:
     {
       spherelight l;
       l.name=name;
       loadSphereLight(l, j_light, scene.materials);
-      scene.objects.push_back(l.sphere);
+      scene.objects.push_back(l._sphere);
+      break;
     }
     }
   }
@@ -518,8 +521,7 @@ inline void loadPlane(plane &p, json const &j, list<Material> const &mats)
   p.mat = mats.idxOf(j.at("material").get<std::string>());
 }
 /// @todo
-inline void loadTriMesh(trimesh &m, json const &j, list<Material> const &mats)
-{}
+inline void loadTriMesh(trimesh &m, json const &j, list<Material> const &mats);
 inline void loadObjects(
   list<Object> &objs, 
   json const &j, 
@@ -535,12 +537,24 @@ inline void loadObjects(
     {
     case ObjectType::GROUP:
       /// @bug does not apply transformation of group to children
-      {loadObjects(objs, j_obj, mats);}
+      {loadObjects(objs, j_obj, mats); break;}
     case ObjectType::SPHERE: 
-      {sphere s; s.name=name; loadSphere(s, j_obj, mats); objs.push_back(s);}
+    {
+      sphere s; 
+      s.name=name; 
+      loadSphere(s, j_obj, mats); 
+      objs.push_back(s); 
+      break;
+    }
     case ObjectType::PLANE:
-      {plane p; p.name=name; loadPlane(p, j_obj, mats); objs.push_back(p);}
-    case ObjectType::TRIMESH: {}
+    {
+      plane p; 
+      p.name=name; 
+      loadPlane(p, j_obj, mats); 
+      objs.push_back(p); 
+      break;
+    }
+    case ObjectType::TRIMESH: break;
     }
   }
 }
@@ -577,7 +591,7 @@ inline void loadBlinn(blinn &m, json const &j)
   m.ior = ior;
 }
 /// @todo
-inline void loadMicrofacet(microfacet &m, json const &j) {}
+inline void loadMicrofacet(microfacet &m, json const &j) {(void)m; (void)j;}
 
 inline void loadMaterial(Material &mat, json const &j)
 {
@@ -585,7 +599,8 @@ inline void loadMaterial(Material &mat, json const &j)
     Overload {
       [&](lambertian &m){ loadLambertian(m, j); },
       [&](blinn &m){ loadBlinn(m, j); },
-      [&](microfacet &m){ loadMicrofacet(m, j); }},
+      [&](microfacet &m){ loadMicrofacet(m, j); },
+      [](auto &m){(void)m;}}, // no behaviour fallback
     mat);
 }
 inline void loadMaterials(list<Material> &mats, json const &j)
@@ -598,19 +613,32 @@ inline void loadMaterials(list<Material> &mats, json const &j)
     auto type = str2mat(j_mat.at("type").get<std::string>());
     switch (type)
     {
+    case MaterialType::NONE: break;
     case MaterialType::LAMBERTIAN:
-      {lambertian l; l.name=name; loadLambertian(l,j_mat); mats.push_back(l);}
-    case MaterialType::BLINN:
-      {blinn b; b.name=name; loadBlinn(b,j_mat); mats.push_back(b);}
-    case MaterialType::MICROFACET:
-      {microfacet m; m.name=name; loadMicrofacet(m,j_mat); mats.push_back(m);}
+    {
+      lambertian l; 
+      l.name=name; 
+      loadLambertian(l,j_mat); 
+      mats.push_back(l); 
+      break;
     }
+    case MaterialType::BLINN:
+      {blinn b; b.name=name; loadBlinn(b,j_mat); mats.push_back(b); break;}
+    case MaterialType::MICROFACET:
+    {
+      microfacet m; 
+      m.name=name; 
+      loadMicrofacet(m,j_mat); 
+      mats.push_back(m); 
+      break;
+    }
+    } // end of switch
   }
 }
 // ************************************
 
 /// @todo load gltf node 
-inline void loadGLTFNode(scene &scene, std::string fpath) {}
+inline void loadGLTFNode(scene &scene, std::string fpath);
 
 /// @brief load scene from file
 /// @param scene scene to put data in

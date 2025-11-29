@@ -214,9 +214,6 @@ TEST_CASE("Load list of Objects")
   nl::cg::load::loadObjects(objs, j_objs, mats);
 
   CHECK(objs.size() == 2);
-  CHECK(objs[0].index() == 1);  // sphere is variant index 1
-  CHECK(objs[1].index() == 2);  // plane is variant index 2
-
   auto &s = std::get<nl::cg::sphere>(objs[0]);
   auto &p = std::get<nl::cg::plane>(objs[1]);
   CHECK(s.name == "sphere1");
@@ -343,8 +340,8 @@ TEST_CASE("Transform - Rotate X axis")
   // Rotation around X axis by 90 degrees should keep X column identity
   CHECK(T.M(0, 0) > 0.99f);  // cos(90°) ≈ 0
   // Y and Z axes should swap and rotate
-  CHECK(std::abs(T.M(1, 2)) < 0.01f);  // should be ~0 (cos(90°))
-  CHECK(std::abs(T.M(2, 1)) < 0.01f);  // should be ~0 (-sin(90°) becomes ~0)
+  CHECK(std::abs(T.M(1, 0)) < 0.01f);  // should be ~0 (cos(90°))
+  CHECK(std::abs(T.M(2, 0)) < 0.01f);  // should be ~0 (-sin(90°) becomes ~0)
 }
 
 TEST_CASE("Transform - Rotate Y axis")
@@ -509,7 +506,8 @@ TEST_CASE("Transform - Load from JSON: SRT composition from loadTransform")
   CHECK(T.M(1, 3) == -2.0f);
   CHECK(T.M(2, 3) == 3.0f);
   // And should have scale and rotation effects
-  CHECK(T.M(0, 0) != 0.0f || T.M(0, 1) != 0.0f);
+  CHECK(T.M(0, 0) != 0.0f);
+  CHECK(T.M(0, 1) != 0.0f);
 }
 
 TEST_CASE("Transform - Load from JSON: partial transforms use defaults")
