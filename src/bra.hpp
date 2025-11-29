@@ -147,7 +147,7 @@ constexpr void opBinaryArray(
   T const * restrict a,
   T const * restrict b)
 {
-  if constexpr (n > simd::simd<T>::lanes)
+  if constexpr (simd::SIMD_MODE!=simd::NO_SIMD && n > simd::simd<T>::lanes)
   {
     Op::SIMD(x, a, b, n);
   } else { for (size_t i=0;i<n;i++) {x[i] = Op::serial(a[i],b[i]);} }
@@ -194,9 +194,13 @@ template<uint32_t n, arithmetic T = std::float64_t> struct ℝn
 
   /// @name member functions
   constexpr T l2() const 
-    {T sum=T(0); for(uint32_t i=0;i<n;i++)sum+=elem[i]; return std::sqrt(sum);}
+  {
+    T sum=T(0); 
+    for(uint32_t i=0;i<n;i++) { sum+=elem[i]*elem[i]; }
+    return std::sqrt(sum);
+  }
   constexpr void normalize()
-    { T len=l2(); for (uint32_t i=0;i<n;i++) elem[i]/=len; }
+    { T len=l2(); assert(len!=T(0)); for (uint32_t i=0;i<n;i++) elem[i]/=len; }
   constexpr ℝn normalized() const {ℝn x(this); x.normalize(); return ℝn(x.elem);}
   constexpr void negate() { for (uint32_t i=0;i<n;i++) elem[i]*=-1; }
   constexpr ℝn negated() { ℝn x(this); x.negate(); return ℝn(x.elem); }
@@ -295,6 +299,7 @@ constexpr ℝn<3,T> operator^(ℝn<3,T> const &x, ℝn<3,T> const &y)
 /// @name aliases
 using ℝ3 = bra::ℝn<3,float>;
 using ℝ4 = bra::ℝn<4,float>;
+using ℝ3x3 = bra::ℝnxm<3,3,float>;
 using ℝ4x4 = bra::ℝnxm<4,4,float>;
 
 } // ** end of namespace nl ***********
