@@ -1,8 +1,8 @@
 // ****************************************************************************
 /// @file numli.hpp
 /// @author Kyle Webster
-/// @version 0.3
-/// @date 22 Nov 2025
+/// @version 0.4
+/// @date 30 Nov 2025
 /// @brief Numerics Library - @ref nl
 /// @details
 /// Collection of constants and core numerics
@@ -69,6 +69,18 @@ namespace nl
   template<class... Fs> struct Overload : Fs... { using Fs::operator()...; };
   template<class... Fs> Overload(Fs...) -> Overload<Fs...>;
   // **********************************
+
+  // ** min, max, clamp ***************
+  template<std::totally_ordered T> constexpr T min(T a, T b) {return a<=b?a:b;}
+  template<std::totally_ordered T> constexpr T max(T a, T b) {return a>=b?a:b;}
+  template<std::totally_ordered T> constexpr T clamp(T a, T inf, T sup)
+    { return min(max(inf,a),sup); }
+  // **********************************
+
+  // ** conversions *******************
+  constexpr uint8_t float2byte(float f) 
+    { return static_cast<uint8_t>(clamp(int(255*f+0.5f),0,255)); }
+    
 
   // ** end of utilities ******************************************************
 

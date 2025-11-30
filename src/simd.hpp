@@ -1,8 +1,8 @@
 // ****************************************************************************
 /// @file numli.hpp
 /// @author Kyle Webster
-/// @version 0.1
-/// @date 22 Nov 2025
+/// @version 0.2
+/// @date 30 Nov 2025
 /// @brief Numerics Library - SIMD @ref simd
 /// @details
 /// Collection of functions and utilities for SIMD use
@@ -50,8 +50,10 @@ namespace simd
   /// @tparam T storage type for alignment if SIMD is unavailable
   template<typename T> struct simd
   {
-    static constexpr std::size_t alignment ///< simd data alignment
+    static constexpr size_t alignment      ///< simd data alignment
       = SIMD_MODE!=NO_SIMD ? SIMD_WIDTH : sizeof(T);
+    static constexpr size_t alignmentFor(size_t n)
+      { return n>lanes ? alignment : sizeof(T); }
     static constexpr std::size_t lanes     ///< number of lanes for type T
       = SIMD_WIDTH/sizeof(T);
   };
