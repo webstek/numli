@@ -12,7 +12,7 @@ is contained in its associated `.hpp` file and is accessible by its namespace.
 | Numli             | `nl`      | None
 | SIMD              | `nl::simd`| Numli
 | Algebra           | `nl::bra` | Numli, SIMD
-| Computer Graphics | `nl::cg`  | Numli, Algebra
+| Computer Graphics | `nl::cg`  | Algebra
 
 ## Tests
 
@@ -20,14 +20,11 @@ Unit tests using [doctest](https://github.com/doctest/doctest?tab=readme-ov-file
 
 ## Status
 
-#### *Current:*
-* Started defining CG data types
-* Expand SIMD compatible $\mathbb{R}^n$ and
-$\mathbb{R}^{n\times m}$ data types.
-
 #### *Recently Complete:*
-* Minimal working ℝn type
+* Minimal working CG module
+* Minimal `.nls` file loading
+* Minimal working ℝnxm
 
 #### *Future:*
-* Minimal working ℝnxm
+* nl::stoch library for stochastic process related work
 * Significant work on Computer Graphics module
