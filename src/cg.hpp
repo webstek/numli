@@ -1,8 +1,8 @@
 // ****************************************************************************
 /// @file cg.hpp
 /// @author Kyle Webster
-/// @version 0.2
-/// @date 22 Nov 2025
+/// @version 0.3
+/// @date 30 Nov 2025
 /// @brief Numerics Library - Computer Graphics - @ref cg
 /// @details
 /// Collection of computer graphics structures and algorithms
@@ -82,17 +82,28 @@ struct list : std::vector<T>
 // ****************************************************************************
 /// @name spectrums
 
+// ************************************
+/// @name RGB
+
 template <bra::arithmetic T> struct rgb
 {
   bra::ℝn<3,T> c;
   constexpr rgb() {}
+  constexpr rgb(T r, T g, T b) {c[0]=r; c[1]=g; c[2]=b;}
   constexpr rgb(T v) {c[0]=v; c[1]=v; c[2]=v;}
   constexpr rgb& operator=(T v) {c[0]=v; c[1]=v; c[2]=v; return *this;}
   constexpr std::string toString()
     {return std::to_string(c[0])+std::to_string(c[1])+std::to_string(c[2]);}
 };
+
 using sRGB   = rgb<uint8_t>;
 using linRGB = rgb<float>;
+
+constexpr sRGB tosRGB(linRGB const &x) 
+  { return sRGB(float2byte(x.c[0]), float2byte(x.c[1]), float2byte(x.c[2])); }
+
+// ** end of RGB **********************
+
 // ** end of spectrums ********************************************************
 
 
@@ -121,23 +132,38 @@ struct vec
   constexpr vec() {dir[3]=0.f;}
   constexpr vec(float (&x)[3]) {for(size_t i=0;i<3;i++)dir[i]=x[i];dir[3]=0.f;}
   constexpr vec(vec const &v)  {for(size_t i=0;i<3;i++)dir[i]=v.dir[i];}
+  constexpr vec(ℝ3 const &x)   {for(size_t i=0;i<3;i++)dir[i]=x[i];dir[3]=0.f;}
+  constexpr vec(ℝ4 const &x)   {for(size_t i=0;i<3;i++)dir[i]=x[i];dir[3]=0.f;}
 };
+constexpr vec operator*(float s, vec const &v) { return vec(v.dir*s); }
+constexpr vec operator*(vec const &v, float s) { return s*v; }
+
 struct pnt
 {
   ℝ4 pos;
   constexpr pnt() {pos[3]=1.f;}
   constexpr pnt(float (&x)[3]) {for(size_t i=0;i<3;i++)pos[i]=x[i];pos[3]=1.f;}
   constexpr pnt(pnt const &v)  {for(size_t i=0;i<3;i++)pos[i]=v.pos[i];}
+  constexpr pnt(ℝ3 const &x)   {for(size_t i=0;i<3;i++)pos[i]=x[i];pos[3]=1.f;}
+  constexpr pnt(ℝ4 const &x)   {for(size_t i=0;i<3;i++)pos[i]=x[i];pos[3]=1.f;}
 };
+constexpr pnt operator+(pnt const &p, vec const &v) {return pnt(p.pos+v.dir);}
+constexpr pnt operator+(vec const &v, pnt const &p) {return p+v;}
+
 struct ray 
 {
-  pnt   p;
-  vec   u;
-  float t;
+  ℝ3 p;
+  ℝ3 u;
+  ray(ℝ3 const &p, ℝ3 const &u) : p(p), u(u) {}
+  ray(ℝ4 const &p, ℝ4 const &u) : 
+    p({p.elem[0],p.elem[1],p.elem[2]}), u({u.elem[0],u.elem[1],u.elem[2]}) {}
+  constexpr pnt operator()(float t) { return p+t*u; }
 };
 struct basis
 {
   ℝ3 x, y, z;
+  basis() = default;
+  basis(ℝ3 const &e0, ℝ3 const &e1, ℝ3 const &e2) : x(e0), y(e1), z(e2) {}
 };
 struct transform
 {
@@ -154,6 +180,8 @@ struct transform
   }
 
   /// @name member functions
+  constexpr ray toLocal(ray const &_ray) const
+    {return ray(M*ℝ4(_ray.p,1.f), M*ℝ4(_ray.u,0.f)); }
   static constexpr transform scale(ℝ3 const &x)
   {
     transform T;
@@ -343,10 +371,11 @@ struct emitter : item
 // ****************************************************************************
 /// @name imaging
 
-template <bra::arithmetic T> struct image 
+template <typename T> struct image 
 {
   size_t width, height;
   std::vector<T> data;
+  void init(size_t w, size_t h) {width=w; height=h; data.resize(width*height);}
 };
 
 template <typename T>
@@ -373,9 +402,18 @@ using Texture  = std::variant<valuetex, colourtex>;
 
 struct camera 
 {
-  transform T;
-  float fov;
+  basis base;
+  ℝ3 pos;
+  float fov, dof, D, Δ, h, w;
   uint width, height;
+  
+  void init()
+  {
+    // assumes focal distance 1
+    Δ = 2*D*tanf32(fov*π<float>/360)/height;
+    h = Δ*height;
+    w = Δ*width;
+  }
 };
 
 struct scene 
@@ -394,10 +432,72 @@ struct scene
 };
 // ** end of data structures **************************************************
 
+
+/// @namespace sample
+/// @brief sampling code
+namespace sample
+{ // ** nl::cg::sample ********************************************************
+
+/// @brief ray from camera c through SS (s[0],s[1]) from disk (s[2],s[3])
+constexpr ray camera(cg::camera const &c, ℝ4 const &s)
+{
+  const basis F = c.base;
+  ℝ3 worldij = c.pos + F.x*(-c.w/2+c.Δ*s[0])+F.y*(-c.h/2+c.Δ*s[1])-c.D*F.z;
+  ℝ3 worldkl = c.pos + c.dof*(F.x*s[2] + F.y*s[3]);
+  return ray(worldkl, (worldij-worldkl).normalized());
+}
+} // ** end of namespace sample ***********************************************
+
 /// @namespace intersect
 /// @brief intersection code for all objects
 namespace intersect
 { // ** nl::cg::intersect *****************************************************
+
+constexpr float BIAS = ε<float>;
+
+constexpr bool sphere(cg::sphere const &s, ray const &w_ray, hitinfo &h_info)
+{ 
+  // convert ray to local space
+  ray l_ray = s.T.toLocal(w_ray);
+
+  // descriminant of ray-sphere intersection equation
+  float const a = l_ray.u|l_ray.u;
+  float const b = 2*(l_ray.p|l_ray.u);
+  float const c = l_ray.p|l_ray.p;
+  float const Δ = b*b - 4*a*c;
+  if (Δ < BIAS) [[likely]] { return false; }
+
+  // otherwise return closest non-negative t
+  float const inv_2a = 1.f/(2.f*a);
+  float const tp = (-b + sqrt(Δ))*inv_2a;
+  float const tm = (-b - sqrt(Δ))*inv_2a;
+  float t = tm;
+  if (tm < BIAS)   [[unlikely]] { t=tp; }        // check for hit too close
+  if (t  < BIAS)   [[unlikely]] { return false; }
+  // if (h.z < t) [[unlikely]] { return false; } // check for closest hit
+
+  // ray hits
+  // ℝ3  const p = l_ray.p+t*l_ray.u;
+  // ℝ3  const n(p);
+  // bool const front = (n|l_ray.u) < 0.f;
+
+  // populate hitinfo
+  /// @todo
+  return true;
+}
+
+constexpr bool scene(cg::scene const &sc, ray const &r, hitinfo &h)
+{
+  bool hit_any = false;
+  for (auto const &obj : sc.objects)
+  {
+    hit_any |= std::visit(Overload{
+      [&](cg::sphere const &s){return sphere(s, r, h);},
+      [] (auto const &object) {(void)object; return false;}},
+      obj);
+  }
+  return hit_any;
+}
 
 } // ** end of namespace intersect ********************************************
 
@@ -438,35 +538,41 @@ inline void loadTransform(transform &T, json const &j)
 inline void loadCamera(camera &cam, json const &j) 
 {
   ℝ3 pos, look_at, up;
-  float fov, ar;
+  float fov, dof, ar, focal_dist;
   uint width;
   loadℝ3(pos, j.at("pos"));
   loadℝ3(look_at, j.at("look_at"));
   loadℝ3(up, j.at("up"));
-  load(fov, j.at("fov"));
   load(width, j.at("width"));
+  load(fov, j.at("fov"));
   try { load(ar, j.at("ar")); } catch(...) { ar=1.7778f; } // default 16:9
+  try { load(dof, j.at("f")); } catch(...) { dof=0.f; }
+  try { load(focal_dist, j.at("f")); } catch(...) { focal_dist=1.f; }
   cam.fov = fov;
+  cam.dof = dof;
+  cam.D = focal_dist;
   cam.width = width;
   cam.height = std::ceil(width/ar);
   ℝ3 z = (pos-look_at).normalized();
   ℝ3 x = up^z;
   ℝ3 y = z^x;
-  cam.T = transform(x,y,z,pos);
+  cam.base = {x,y,z};
+  cam.pos  = pos;
+  cam.init();
 }
 // ************************************
 
 // ************************************
 /// @name light loading
 
-inline void loadAmbientLight(ambientlight &l, json const &j) 
-  {linRGB irrad; loadℝ3(irrad.c, j.at("irradiance")); l.irradiance = irrad;}
+inline void loadAmbientLight(ambientlight &l_ray, json const &j) 
+  {linRGB irrad; loadℝ3(irrad.c, j.at("irradiance")); l_ray.irradiance = irrad;}
 /// @todo
-inline void loadPointLight(pointlight &l, json const &j);
+inline void loadPointLight(pointlight &l_ray, json const &j);
 /// @todo
-inline void loadDirLight(dirlight &l, json const &j);
+inline void loadDirLight(dirlight &l_ray, json const &j);
 inline void loadSphereLight(
-  spherelight &l, 
+  spherelight &l_ray, 
   json const &j, 
   list<Material> &mats)
 {
@@ -478,8 +584,8 @@ inline void loadSphereLight(
   materialidx mat = mats.idxOf(name);
   if (mat==mats.size()) {emitter m = {name, radiance}; mats.push_back(m);}
   s.mat = mat;
-  l.radiance = radiance;
-  l._sphere = s;
+  l_ray.radiance = radiance;
+  l_ray._sphere = s;
 }
 /// @todo point and direction light loading
 inline void loadLights(
@@ -496,10 +602,10 @@ inline void loadLights(
     {
     case LightType::AMBIENT:
       {
-        ambientlight l; 
-        l.name=name; 
-        loadAmbientLight(l, j_light); 
-        scene.ideal_lights.push_back(l);
+        ambientlight l_ray; 
+        l_ray.name=name; 
+        loadAmbientLight(l_ray, j_light); 
+        scene.ideal_lights.push_back(l_ray);
         scene.lights.push_back(&scene.ideal_lights.back());
         break;
       }
@@ -507,10 +613,10 @@ inline void loadLights(
     case LightType::DIR: break;
     case LightType::SPHERE:
     {
-      spherelight l;
-      l.name=name;
-      loadSphereLight(l, j_light, scene.materials);
-      scene.objects.push_back(l._sphere);
+      spherelight l_ray;
+      l_ray.name=name;
+      loadSphereLight(l_ray, j_light, scene.materials);
+      scene.objects.push_back(l_ray._sphere);
       break;
     }
     }
@@ -633,10 +739,10 @@ inline void loadMaterials(list<Material> &mats, json const &j)
     case MaterialType::NONE: break;
     case MaterialType::LAMBERTIAN:
     {
-      lambertian l; 
-      l.name=name; 
-      loadLambertian(l,j_mat); 
-      mats.push_back(l); 
+      lambertian l_ray; 
+      l_ray.name=name; 
+      loadLambertian(l_ray,j_mat); 
+      mats.push_back(l_ray); 
       break;
     }
     case MaterialType::BLINN:
