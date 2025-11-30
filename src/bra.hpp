@@ -201,9 +201,9 @@ template<uint32_t n, arithmetic T = std::float64_t> struct ℝn
   }
   constexpr void normalize()
     { T len=l2(); assert(len!=T(0)); for (uint32_t i=0;i<n;i++) elem[i]/=len; }
-  constexpr ℝn normalized() const {ℝn x(this); x.normalize(); return ℝn(x.elem);}
+  constexpr ℝn normalized() const {ℝn x(this);x.normalize();return ℝn(x.elem);}
   constexpr void negate() { for (uint32_t i=0;i<n;i++) elem[i]*=-1; }
-  constexpr ℝn negated() { ℝn x(this); x.negate(); return ℝn(x.elem); }
+  constexpr ℝn negated() const { ℝn x(this); x.negate(); return ℝn(x.elem); }
 
   /// @name operators
   constexpr T& operator[](size_t i)       noexcept { return elem[i]; }
@@ -231,9 +231,15 @@ struct ℝnxm
   alignas(simd::simd<T>::alignment) T elem[N]; ///< basis coefficients
 
   /// @name constructors
-  constexpr explicit ℝnxm( T const * restrict (&a)[n] ) {nl::copy(elem, a);}
-  explicit ℝnxm( ℝn<n,T> const &x ) { nl::copy(elem,x.elem); }
-  explicit ℝnxm( T v ) { for (uint64_t k=0;k<N;k++) elem[k]=v; }
+  constexpr explicit ℝnxm( T const restrict (&a)[N] ) { copy(elem, a); }
+  constexpr explicit ℝnxm( ℝnxm<n,m,T> const &x ) { copy(elem,x.elem); }
+  constexpr explicit ℝnxm( ℝnxm<n,m,T> const *x ) { copy(elem,x->elem); }
+  constexpr explicit ℝnxm( T v ) { for (uint64_t k=0;k<N;k++) elem[k]=v; }
+  constexpr ℝnxm(std::initializer_list<T> init)
+  {
+    auto it=init.begin(); 
+    for (uint32_t k=0; k<N && it!=init.end(); k++,it++) {elem[k]=*it;}
+  }
   ℝnxm() {}
 
   /// @name member functions
@@ -242,12 +248,16 @@ struct ℝnxm
     for (uint64_t i=0;i<n;i++) for (uint64_t j=0;j<m;j++) 
       if (i==j) {elem[i*m+j]=T(1);} else {elem[i*m+j]=T(0);}
   }
+  constexpr void negate() { for (uint64_t k=0;k<N;k++) elem[k]*=-1; }
+  constexpr ℝnxm negated() const {ℝnxm x(this);x.negate();return ℝnxm(x.elem);}
 
   /// @name operators
   constexpr T& operator()(size_t i, size_t j) noexcept 
     { return elem[i*m+j]; }
   constexpr T  operator()(size_t i, size_t j) const noexcept
     { return elem[i*m+j]; }
+  constexpr ℝnxm& operator=(ℝnxm const &A) noexcept
+    { if (&A!=this) copy(elem, A.elem); return *this; }
   constexpr ℝnxm& operator=(T const (&a)[N]) noexcept
     { copy(elem, a); return *this; }
   constexpr ℝnxm& operator=(T v) noexcept
@@ -256,6 +266,10 @@ struct ℝnxm
 // ** end ℝnxm ************************
 
 // ** Operators on ℝn and ℝnxm ********
+
+/// @name unary operators
+template<uint32_t n, uint32_t m, arithmetic T>
+constexpr ℝnxm<n,m,T> operator-(ℝnxm<n,m,T> const &x) { return x.negated(); }
 
 /// @name binary operators
 template<uint32_t n, arithmetic T>
@@ -271,18 +285,34 @@ template<uint32_t n, arithmetic T>
 constexpr ℝn<n,T> operator/(ℝn<n,T> const &x, ℝn<n,T> const &y)
   { return ℝn<n,T>(x,y,std::type_identity<op_div<T>>{}); }
 
-/// @todo simd matrix multiplication
-  template<uint32_t n, uint32_t K, uint32_t m, arithmetic T>
-constexpr ℝnxm<n,m,T> operator*(ℝnxm<n,K,T> const &X, ℝnxm<K,m,T> const &Y)
+/// @brief Matrix-Matrix multiplication
+/// @todo simd matrix-matrix multiplication
+template<uint32_t n, uint32_t K, uint32_t m, arithmetic T>
+constexpr ℝnxm<n,m,T> operator*(ℝnxm<n,K,T> const &A, ℝnxm<K,m,T> const &B)
 {
-  ℝnxm<n,m,T> A;
+  T vals[n*m];
   for (uint32_t i=0;i<n;i++) for (uint32_t j=0;j<m;j++) 
   {
-    T sum = 0.f;
-    for (uint32_t k=0;k<K;k++) { sum += X.elem[i*K+k]*Y.elem[k*m+j]; }
-    A.elem[i*m+j] = sum;
+    T sum=0.f;
+    for (uint32_t k=0;k<K;k++) { sum += A.elem[i*K+k]*B.elem[k*m+j]; }
+    vals[i*m+j] = sum;
   }
-  return A;
+  return ℝnxm<n,m,T>(vals);
+}
+
+/// @brief Matrix-Vector multiplication
+/// @todo simd matrix-vector multiplication
+template<uint32_t n, uint32_t m, arithmetic T>
+constexpr ℝn<n,T> operator*(ℝnxm<n,m,T> const &A, ℝn<m,T> const &b)
+{
+  T vals[n];
+  for (uint32_t i=0;i<n;i++)
+  {
+    T sum=0.f;
+    for (uint32_t k=0;k<m;k++) { sum += A.elem[i*m+k]*b[k]; }
+    vals[i] = sum;
+  }
+  return ℝn<n,T>(vals);
 }
 
 /// @brief cross product in ℝ3
@@ -291,6 +321,62 @@ constexpr ℝn<3,T> operator^(ℝn<3,T> const &x, ℝn<3,T> const &y)
   { return {x[1]*y[2]-x[2]*y[1], x[2]*y[0]-x[0]*y[2], x[0]*y[1]-x[1]*y[0]}; }
 
 // ** end operators on ℝn and ℝnxm ****
+
+// ************************************
+/// @name functions on ℝn and ℝnxm
+
+/// @brief Subset of column j of length l of matrix A starting at i_min
+template<uint32_t l, uint32_t n, uint32_t m, arithmetic T, uint32_t i_min=0>
+constexpr ℝn<l,T> column(ℝnxm<n,m,T> const &A, uint32_t j)
+{
+  assert(j<m);
+  assert(i_min<n);
+  assert(l<=n-i_min);
+  T col[l];
+  for (uint32_t i=i_min;i<i_min+l;i++) { col[i] = A(i,j); }
+  return ℝn<l,T>(col);
+}
+
+/// @todo row subset
+/// @todo sub matrix
+
+/// @brief square matrix inverse
+template<uint32_t n, arithmetic T> 
+constexpr ℝnxm<n,n,T> inverse(ℝnxm<n,n,T> const &A);
+
+/// @brief 3x3 matrix inverse specialization
+template<arithmetic T>
+constexpr ℝnxm<3,3,T> inverse(ℝnxm<3,3,T> const &A)
+{
+  // Compute 2x2 minors
+  T m00 = A(1,1)*A(2,2) - A(1,2)*A(2,1);
+  T m01 = A(1,0)*A(2,2) - A(1,2)*A(2,0);
+  T m02 = A(1,0)*A(2,1) - A(1,1)*A(2,0);
+  T m10 = A(0,1)*A(2,2) - A(0,2)*A(2,1);
+  T m11 = A(0,0)*A(2,2) - A(0,2)*A(2,0);
+  T m12 = A(0,0)*A(2,1) - A(0,1)*A(2,0);
+  T m20 = A(0,1)*A(1,2) - A(0,2)*A(1,1);
+  T m21 = A(0,0)*A(1,2) - A(0,2)*A(1,0);
+  T m22 = A(0,0)*A(1,1) - A(0,1)*A(1,0);
+  
+  // Compute determinant
+  T det = A(0,0)*m00 - A(0,1)*m01 + A(0,2)*m02;
+  
+  // Compute inverse using adjugate/determinant
+  T vals[9];
+  T inv_det = T(1) / det;
+  vals[0] =  m00 * inv_det;
+  vals[1] = -m10 * inv_det;
+  vals[2] =  m20 * inv_det;
+  vals[3] = -m01 * inv_det;
+  vals[4] =  m11 * inv_det;
+  vals[5] = -m21 * inv_det;
+  vals[6] =  m02 * inv_det;
+  vals[7] = -m12 * inv_det;
+  vals[8] =  m22 * inv_det;
+  
+  return ℝnxm<3,3,T>(vals);
+}
 
 // ** end of Vector Spaces ****************************************************
 } // ** end of namespace bra **********

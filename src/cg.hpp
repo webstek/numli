@@ -105,13 +105,14 @@ constexpr ℝ4x4 inverseTransform(ℝ4x4 const &M)
   ℝ3x3 R = {M(0,0),M(0,1),M(0,2),M(1,0),M(1,1),M(1,2),M(2,0),M(2,1),M(2,2)};
   ℝ3x3 R_inv = bra::inverse(R);
   ℝ4x4 M_inv;
-  ℝ3 t = -R_inv*M.column(3);
+  ℝ3 t = -R_inv*bra::column<3>(M,3);
   for (int i=0;i<3;i++) 
   {
     for (int j=0;j<3;j++) { M_inv(i,j)=R_inv(i,j); }
     M_inv(i,3) = t[i];
   }
   M_inv(3,0)=0.f; M_inv(3,1)=0.f; M_inv(3,2)=0.f; M_inv(3,3)=1.f;
+  return ℝ4x4(M_inv.elem);
 }
 
 struct vec 

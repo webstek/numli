@@ -190,3 +190,119 @@ TEST_CASE("ℝn - cross product")
   CHECK(zero_result.elem[1] == doctest::Approx(0.f).epsilon(1e-6f));
   CHECK(zero_result.elem[2] == doctest::Approx(0.f).epsilon(1e-6f));
 }
+
+TEST_CASE("ℝnxm - member functions: negate and negated")
+{
+  // test negate on 2x2 matrix
+  nl::bra::ℝnxm<2,2,float> M{
+    1.f, 2.f,
+    3.f, 4.f
+  };
+  M.negate();
+  CHECK(M(0,0) == -1.f);
+  CHECK(M(0,1) == -2.f);
+  CHECK(M(1,0) == -3.f);
+  CHECK(M(1,1) == -4.f);
+
+  // test negated (const version) on 3x3 matrix
+  nl::bra::ℝnxm<3,3,float> N{
+    1.f, -2.f, 3.f,
+    -4.f, 5.f, -6.f,
+    7.f, -8.f, 9.f
+  };
+  auto N_negated = N.negated();
+  CHECK(N_negated(0,0) == -1.f);
+  CHECK(N_negated(0,1) == 2.f);
+  CHECK(N_negated(0,2) == -3.f);
+  CHECK(N_negated(1,0) == 4.f);
+  CHECK(N_negated(1,1) == -5.f);
+  CHECK(N_negated(1,2) == 6.f);
+  CHECK(N_negated(2,0) == -7.f);
+  CHECK(N_negated(2,1) == 8.f);
+  CHECK(N_negated(2,2) == -9.f);
+  
+  // verify original is unchanged
+  CHECK(N(0,0) == 1.f);
+  CHECK(N(1,1) == 5.f);
+  CHECK(N(2,2) == 9.f);
+
+  // test operator- on 2x2 matrix
+  nl::bra::ℝnxm<2,2,float> P{2.f, 3.f, 4.f, 5.f};
+  auto P_neg = -P;
+  CHECK(P_neg(0,0) == -2.f);
+  CHECK(P_neg(0,1) == -3.f);
+  CHECK(P_neg(1,0) == -4.f);
+  CHECK(P_neg(1,1) == -5.f);
+  CHECK(P(0,0) == 2.f); // original unchanged
+}
+
+TEST_CASE("ℝnxm - matrix inverse (3x3)")
+{
+  // test inverse of identity matrix = identity
+  nl::bra::ℝnxm<3,3,float> I;
+  I.identity();
+  auto I_inv = nl::bra::inverse(I);
+  for (int i = 0; i < 3; ++i)
+  {
+    for (int j = 0; j < 3; ++j)
+    {
+      if (i == j) CHECK(I_inv(i,j) == doctest::Approx(1.f).epsilon(1e-5f));
+      else CHECK(I_inv(i,j) == doctest::Approx(0.f).epsilon(1e-5f));
+    }
+  }
+
+  // test inverse of simple diagonal matrix
+  // A = [2, 0, 0; 0, 3, 0; 0, 0, 4]
+  // A^-1 = [0.5, 0, 0; 0, 1/3, 0; 0, 0, 0.25]
+  nl::bra::ℝnxm<3,3,float> D{
+    2.f, 0.f, 0.f,
+    0.f, 3.f, 0.f,
+    0.f, 0.f, 4.f
+  };
+  auto D_inv = nl::bra::inverse(D);
+  CHECK(D_inv(0,0) == doctest::Approx(0.5f).epsilon(1e-5f));
+  CHECK(D_inv(0,1) == doctest::Approx(0.f).epsilon(1e-5f));
+  CHECK(D_inv(0,2) == doctest::Approx(0.f).epsilon(1e-5f));
+  CHECK(D_inv(1,0) == doctest::Approx(0.f).epsilon(1e-5f));
+  CHECK(D_inv(1,1) == doctest::Approx(1.f/3.f).epsilon(1e-5f));
+  CHECK(D_inv(1,2) == doctest::Approx(0.f).epsilon(1e-5f));
+  CHECK(D_inv(2,0) == doctest::Approx(0.f).epsilon(1e-5f));
+  CHECK(D_inv(2,1) == doctest::Approx(0.f).epsilon(1e-5f));
+  CHECK(D_inv(2,2) == doctest::Approx(0.25f).epsilon(1e-5f));
+
+  // test inverse property: A * A^-1 = I
+  nl::bra::ℝnxm<3,3,float> A{
+    1.f, 2.f, 3.f,
+    0.f, 1.f, 4.f,
+    5.f, 6.f, 0.f
+  };
+  auto A_inv = nl::bra::inverse(A);
+  auto product = A * A_inv;
+  for (int i = 0; i < 3; ++i)
+  {
+    for (int j = 0; j < 3; ++j)
+    {
+      float expected = (i == j) ? 1.f : 0.f;
+      CHECK(product(i,j) == doctest::Approx(expected).epsilon(1e-4f));
+    }
+  }
+
+  // test inverse of another simple matrix
+  // A = [1, 0, 1; 0, 2, 0; 1, 0, 1] should be singular, but let's use a non-singular one
+  // A = [1, 0, 0; 0, 2, 0; 0, 0, 3]
+  nl::bra::ℝnxm<3,3,float> B{
+    1.f, 0.f, 0.f,
+    0.f, 2.f, 0.f,
+    0.f, 0.f, 3.f
+  };
+  auto B_inv = nl::bra::inverse(B);
+  auto B_product = B * B_inv;
+  for (int i = 0; i < 3; ++i)
+  {
+    for (int j = 0; j < 3; ++j)
+    {
+      float expected = (i == j) ? 1.f : 0.f;
+      CHECK(B_product(i,j) == doctest::Approx(expected).epsilon(1e-5f));
+    }
+  }
+}
