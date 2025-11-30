@@ -1,8 +1,8 @@
 // ****************************************************************************
 /// @file bra.hpp
 /// @author Kyle Webster
-/// @version 0.3
-/// @date 20 Nov 2025
+/// @version 0.4
+/// @date 30 Nov 2025
 /// @brief Numerics Library - Algebra @ref bra
 /// @details
 /// Collection of algebraic structures and algorithms
@@ -175,13 +175,15 @@ constexpr void opUnaryArray(T * restrict x, T const * restrict a)
 template<uint32_t n, arithmetic T = std::float64_t> struct ℝn
 {
   /// @name members
-  alignas(simd::simd<T>::alignment) T elem[n]; ///< basis coefficients
+  alignas(simd::simd<T>::alignmentFor(n)) T elem[n]; ///< basis coefficients
 
   /// @name constructors
   constexpr explicit ℝn( T const restrict (&a)[n] ) { copy(elem, a); }
   constexpr explicit ℝn( ℝn<n,T> const &x ) { copy(elem, x.elem); }
   constexpr explicit ℝn( ℝn<n,T> const *x ) { copy(elem, x->elem); }
   constexpr explicit ℝn( T v ) { for (uint32_t i=0;i<n;i++) elem[i]=v; }
+  constexpr explicit ℝn( ℝn<n-1,T> const &x, T v) 
+    { for (uint32_t i=0;i<n-1;i++) elem[i]=x.elem[i]; elem[n-1]=v; }
   constexpr ℝn(std::initializer_list<T> init)
   {
     auto it=init.begin(); 
@@ -208,6 +210,9 @@ template<uint32_t n, arithmetic T = std::float64_t> struct ℝn
   /// @name operators
   constexpr T& operator[](size_t i)       noexcept { return elem[i]; }
   constexpr T  operator[](size_t i) const noexcept { return elem[i]; }
+
+  constexpr ℝn& operator=(ℝn const &x) noexcept
+  { if (&x!=this) copy(elem, x.elem); return *this; }
   constexpr ℝn& operator=(T const (&a)[n]) noexcept
     { copy(elem, a); return *this; }
   constexpr ℝn& operator=(T v) noexcept
@@ -227,8 +232,8 @@ template<uint32_t n, uint32_t m, arithmetic T = std::float64_t>
 struct ℝnxm
 {
   /// @name members
-  static constexpr uint64_t N = n*m;           ///< number of elements
-  alignas(simd::simd<T>::alignment) T elem[N]; ///< basis coefficients
+  static constexpr uint64_t N = n*m;                 ///< number of elements
+  alignas(simd::simd<T>::alignmentFor(N)) T elem[N]; ///< basis coefficients
 
   /// @name constructors
   constexpr explicit ℝnxm( T const restrict (&a)[N] ) { copy(elem, a); }
@@ -315,10 +320,31 @@ constexpr ℝn<n,T> operator*(ℝnxm<n,m,T> const &A, ℝn<m,T> const &b)
   return ℝn<n,T>(vals);
 }
 
+/// @brief Vector-Scalar multiplication
+template<uint32_t n, arithmetic T>
+constexpr ℝn<n,T> operator*(T s, ℝn<n,T> const &a)
+{
+  T vals[n]; 
+  for (uint32_t i=0;i<n;i++) { vals[i]=a.elem[i]*s; }
+  return ℝn<n,T>(vals);
+}
+template<uint32_t n, arithmetic T>
+constexpr ℝn<n,T> operator*(ℝn<n,T> const &a, T s)
+{
+  T vals[n]; 
+  for (uint32_t i=0;i<n;i++) { vals[i]=a.elem[i]*s; }
+  return ℝn<n,T>(vals);
+}
+
 /// @brief cross product in ℝ3
 template<arithmetic T>
 constexpr ℝn<3,T> operator^(ℝn<3,T> const &x, ℝn<3,T> const &y)
   { return {x[1]*y[2]-x[2]*y[1], x[2]*y[0]-x[0]*y[2], x[0]*y[1]-x[1]*y[0]}; }
+/// @brief dot product in ℝ3
+template<arithmetic T>
+constexpr T operator|(ℝn<3,T> const &x, ℝn<3,T> const &y)
+  { return x[0]*y[0]+x[1]*y[1]+x[2]*y[2]; }
+
 
 // ** end operators on ℝn and ℝnxm ****
 
@@ -383,8 +409,10 @@ constexpr ℝnxm<3,3,T> inverse(ℝnxm<3,3,T> const &A)
 
 // ************************************
 /// @name aliases
-using ℝ3 = bra::ℝn<3,float>;
-using ℝ4 = bra::ℝn<4,float>;
+using ℤ2p  = bra::ℝn<2,uint>;
+using ℝ2   = bra::ℝn<2,float>;
+using ℝ3   = bra::ℝn<3,float>;
+using ℝ4   = bra::ℝn<4,float>;
 using ℝ3x3 = bra::ℝnxm<3,3,float>;
 using ℝ4x4 = bra::ℝnxm<4,4,float>;
 
