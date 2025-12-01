@@ -7,12 +7,13 @@ Numerics Library containing various useful C++ structures and functions. Numli i
 is contained in its associated `.hpp` file and is accessible by its namespace.
 
 #### *Table 1: Namespaces and Dependencies*
-| Module            | namespace | required modules |
-|-------------------|-----------|------------------|
-| Numli             | `nl`      | None
-| SIMD              | `nl::simd`| Numli
-| Algebra           | `nl::bra` | Numli, SIMD
-| Computer Graphics | `nl::cg`  | Algebra
+| Module            | namespace  | required modules |
+|-------------------|------------|------------------|
+| Numli             | `nl`       | None
+| SIMD              | `nl::simd` | Numli
+| Algebra           | `nl::bra`  | Numli, SIMD
+| Stochastics       | `nl::stoch`| Numli
+| Computer Graphics | `nl::cg`   | Algebra, Stochastics
 
 ## Tests
 
@@ -21,10 +22,11 @@ Unit tests using [doctest](https://github.com/doctest/doctest?tab=readme-ov-file
 ## Status
 
 #### *Recently Complete:*
+* Minimal working stoch module
 * Minimal working CG module
 * Minimal `.nls` file loading
 * Minimal working ℝnxm
 
 #### *Future:*
-* nl::stoch library for stochastic process related work
+* replacing `<random>` RNG with PCG RNG.
 * Significant work on Computer Graphics module
