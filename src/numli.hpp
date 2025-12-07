@@ -1,8 +1,8 @@
 // ****************************************************************************
 /// @file numli.hpp
 /// @author Kyle Webster
-/// @version 0.3
-/// @date 22 Nov 2025
+/// @version 0.4
+/// @date 6 Dec 2025
 /// @brief Numerics Library - @ref nl
 /// @details
 /// Collection of constants and core numerics
@@ -12,8 +12,10 @@
 // ** Includes ****************************************************************
 #include <numbers>
 #include <stdfloat>
+#include <cstdint>
 #include <cstring>
 #include <cassert>
+#include <concepts>
 // ****************************************************************************
 
 // ************************************
@@ -63,6 +65,8 @@ namespace nl
     { return min(max(inf,a),sup); }
   template<typename T> constexpr T deg2rad(T deg) {return deg*π<T>/T(180);}
   template<typename T> constexpr T UB = std::numeric_limits<T>::max();
+  constexpr float constexprSqrt(float x, float x1=1., float x0=0.f)
+  { return x1 == x0 ? x1 : constexprSqrt(x, 0.5f*(x1+x/x1), x1); }
   // **********************************
   // ** end of math ***********************************************************
 
