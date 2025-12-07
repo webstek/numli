@@ -1,8 +1,8 @@
 // ****************************************************************************
 /// @file bra.hpp
 /// @author Kyle Webster
-/// @version 0.5
-/// @date 1 Dec 2025
+/// @version 0.7
+/// @date 6 Dec 2025
 /// @brief Numerics Library - Algebra @ref bra
 /// @details
 /// Collection of algebraic structures and algorithms
@@ -204,7 +204,7 @@ template<uint32_t n, arithmetic T = std::float64_t> struct ℝn
     return std::sqrt(sum);
   }
   constexpr void normalize()
-    { T len=l2(); assert(len!=T(0)); for (uint32_t i=0;i<n;i++) elem[i]/=len; }
+    { T len=l2(); for (uint32_t i=0;i<n;i++) elem[i]/=len; }
   constexpr ℝn normalized() const {ℝn x(this);x.normalize();return ℝn(x.elem);}
   constexpr void negate() { for (uint32_t i=0;i<n;i++) elem[i]*=-1; }
   constexpr ℝn negated() const { ℝn x(this); x.negate(); return ℝn(x.elem); }
@@ -348,7 +348,11 @@ constexpr ℝn<3,T> operator^(ℝn<3,T> const &x, ℝn<3,T> const &y)
 template<arithmetic T>
 constexpr T operator|(ℝn<3,T> const &x, ℝn<3,T> const &y)
   { return x[0]*y[0]+x[1]*y[1]+x[2]*y[2]; }
-
+/// @brief reflection about vector in ℝ3
+/// @warning ASSUMES axis is a unit vector
+template<arithmetic T>
+constexpr ℝn<3,T> reflect(ℝn<3,T> const &x, ℝn<3,T> const &axis)
+  { return -x+2*(x|axis)*axis; }
 
 // ** end operators on ℝn and ℝnxm ****
 
