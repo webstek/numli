@@ -1,8 +1,8 @@
 // ****************************************************************************
 /// @file cg.hpp
 /// @author Kyle Webster
-/// @version 0.4
-/// @date 1 Dec 2025
+/// @version 0.10
+/// @date 6 Dec 2025
 /// @brief Numerics Library - Computer Graphics - @ref cg
 /// @details
 /// Collection of computer graphics structures and algorithms
@@ -94,10 +94,17 @@ template <bra::arithmetic T> struct rgb
   constexpr rgb(T r, T g, T b) {c[0]=r; c[1]=g; c[2]=b;}
   constexpr rgb(T v) {c[0]=v; c[1]=v; c[2]=v;}
   constexpr rgb& operator=(T v) {c[0]=v; c[1]=v; c[2]=v; return *this;}
+  constexpr float r() const {return c[0];}
+  constexpr float g() const {return c[1];}
+  constexpr float b() const {return c[2];}
   constexpr std::string toString()
     {return std::to_string(c[0])+std::to_string(c[1])+std::to_string(c[2]);}
+  constexpr float luma() const {return 0.2126f*c[0]+0.7152f*c[1]+0.0722f*c[2];}
 };
 
+template<bra::arithmetic T>
+constexpr rgb<T> operator+(rgb<T> const &C1, rgb<T> const &C2) 
+  { return rgb<T>(C1.c+C2.c); }
 template<bra::arithmetic T> 
 constexpr rgb<T> operator*(rgb<T> const &C, float s) {return rgb<T>(C.c*s);}
 template<bra::arithmetic T> 
@@ -106,7 +113,13 @@ template<bra::arithmetic T>
 constexpr rgb<T> operator*(rgb<T> const &C1, rgb<T> const &C2) 
   { return rgb<T>(C1.c*C2.c); }
 template<bra::arithmetic T> 
-constexpr rgb<T> operator/(rgb<T> const &C, float s) {return rgb<T>(C.c*(1/s));}
+constexpr rgb<T> operator/(rgb<T> const &C,float s) {return rgb<T>(C.c*(1/s));}
+template<bra::arithmetic T>
+constexpr rgb<T>& operator+=(rgb<T> &C1, rgb<T> const &C2) 
+  { C1.c[0]+=C2.c[0]; C1.c[1]+=C2.c[1]; C1.c[2]+=C2.c[2]; return C1; }
+template<bra::arithmetic T>
+constexpr rgb<T>& operator/=(rgb<T> &C1, float s)
+  { C1.c[0]/=s; C1.c[1]/=s; C1.c[2]/=s; return C1; }
 
 /// @name colour representations
 using rgb24  = rgb<uint8_t>;
@@ -134,8 +147,9 @@ struct vec
 {
   ℝ4 dir;
   constexpr vec() {dir[3]=0.f;}
-  constexpr vec(float (&x)[3]) {for(size_t i=0;i<3;i++)dir[i]=x[i];dir[3]=0.f;}
-  constexpr vec(vec const &v)  {for(size_t i=0;i<3;i++)dir[i]=v.dir[i];}
+  constexpr vec(float const (&x)[3]) 
+    { for (size_t i=0;i<3;i++) dir[i]=x[i]; dir[3]=0.f; }
+  constexpr vec(vec const &v)  {for(size_t i=0;i<4;i++)dir[i]=v.dir[i];}
   constexpr vec(ℝ3 const &x)   {for(size_t i=0;i<3;i++)dir[i]=x[i];dir[3]=0.f;}
   constexpr vec(ℝ4 const &x)   {for(size_t i=0;i<3;i++)dir[i]=x[i];dir[3]=0.f;}
 };
@@ -153,8 +167,9 @@ struct pnt
 {
   ℝ4 pos;
   constexpr pnt() {pos[3]=1.f;}
-  constexpr pnt(float (&x)[3]) {for(size_t i=0;i<3;i++)pos[i]=x[i];pos[3]=1.f;}
-  constexpr pnt(pnt const &v)  {for(size_t i=0;i<3;i++)pos[i]=v.pos[i];}
+  constexpr pnt(float const (&x)[3]) 
+    { for (size_t i=0;i<3;i++) pos[i]=x[i]; pos[3]=1.f; }
+  constexpr pnt(pnt const &v)  {for(size_t i=0;i<4;i++)pos[i]=v.pos[i];}
   constexpr pnt(ℝ3 const &x)   {for(size_t i=0;i<3;i++)pos[i]=x[i];pos[3]=1.f;}
   constexpr pnt(ℝ4 const &x)   {for(size_t i=0;i<3;i++)pos[i]=x[i];pos[3]=1.f;}
 };
@@ -169,7 +184,9 @@ struct ray
   ray(ℝ3 const &p, ℝ3 const &u) : p(p), u(u) {}
   ray(ℝ4 const &p, ℝ4 const &u) : 
     p({p.elem[0],p.elem[1],p.elem[2]}), u({u.elem[0],u.elem[1],u.elem[2]}) {}
-  constexpr pnt operator()(float t) { return p+t*u; }
+  constexpr ℝ3 operator()(float t) const { return p+t*u; }
+  constexpr std::array<float,6> plucker() const
+    { ℝ3 const m = p^u; return {u[0],u[1],u[2],m[0],m[1],m[2]}; }
 };
 
 struct basis
@@ -177,23 +194,8 @@ struct basis
   ℝ3 x, y, z;
   basis() = default;
   basis(ℝ3 const &e0, ℝ3 const &e1, ℝ3 const &e2) : x(e0), y(e1), z(e2) {}
+  constexpr ℝ3 toBasis(ℝ3 const &v) const { return v[0]*x+v[1]*y+v[2]*z; }
 };
-
-
-	// void GetOrthonormals ( Vec3 &v0, Vec3 &v1 ) const	//!< Returns two orthogonal vectors to this vector, forming an orthonormal basis
-	// {
-	// 	if ( z >= y ) {
-	// 		T const a = T(1)/(1 + z);
-	// 		T const b = -x*y*a;
-	// 		v0.Set( 1 - x*x*a, b, -x );
-	// 		v1.Set( b, 1 - y*y*a, -y );
-	// 	} else {
-	// 		T const a = T(1)/(1 + y);
-	// 		T const b = -x*z*a;
-	// 		v0.Set( b, -z, 1 - z*z*a );
-	// 		v1.Set( 1 - x*x*a, -x, b );
-	// 	}
-	// }
 
 /// @brief returns an orthonormal basis with the e0^e1 = e2 = v.normalized()
 /// @details
@@ -201,9 +203,9 @@ struct basis
 constexpr basis orthonormalBasisOf(ℝ3 const &v)
 {
   ℝ3 const e2 = v.normalized();
-  float const x=e2[0];
-  float const y=e2[1];
-  float const z=e2[2];
+  float const &x=e2[0];
+  float const &y=e2[1];
+  float const &z=e2[2];
   ℝ3 e0, e1;
   if ( z >= y ) 
   {
@@ -253,7 +255,7 @@ struct transform
   /// @name member functions
   constexpr ℝ3 pos() const {return bra::column<3>(M,3);}
   constexpr ray toLocal(ray const &_ray) const
-    {return ray(M_inv*ℝ4(_ray.p,1.f), M_inv*ℝ4(_ray.u,0.f)); }
+    { return ray(M_inv*ℝ4(_ray.p,1.f), M_inv*ℝ4(_ray.u,0.f)); }
   constexpr ℝ3 toWorld(pnt p) const { return ℝ3(M*p.pos); }
   constexpr ℝ3 toWorld(vec v) const { return ℝ3(M*v.dir); }
   constexpr ℝ3 toWorld(normal n) const 
@@ -267,30 +269,30 @@ struct transform
     return T;
   }
   static constexpr transform rotate(ℝ3 const &u, float degrees)
-  { // using Rodrigues' formula R(u,θ) = cosθI+(1-cosθ)*outer(u)+sinθ*skew(u)
+  { // using Rodrigues' formula R(u,θ) = cosθI+(1-cosθ)*outer(u)-sinθ*skew(u)
     transform T;
     const float θ = deg2rad(degrees);
     const float cosθ = cosf32(θ);
     const float sinθ = sinf32(θ);
     T.M(0,0) = cosθ + (1-cosθ)*u[0]*u[0];
-    T.M(0,1) = (1-cosθ)*u[0]*u[1]-sinθ*u[2];
-    T.M(0,2) = (1-cosθ)*u[0]*u[2]+sinθ*u[1];
-    T.M(1,0) = (1-cosθ)*u[1]*u[0]+sinθ*u[2];
+    T.M(0,1) = (1-cosθ)*u[0]*u[1]+sinθ*u[2];
+    T.M(0,2) = (1-cosθ)*u[0]*u[2]-sinθ*u[1];
+    T.M(1,0) = (1-cosθ)*u[1]*u[0]-sinθ*u[2];
     T.M(1,1) = cosθ + (1-cosθ)*u[1]*u[1];
-    T.M(1,2) = (1-cosθ)*u[1]*u[2]-sinθ*u[0];
-    T.M(2,0) = (1-cosθ)*u[2]*u[0]-sinθ*u[1];
-    T.M(2,1) = (1-cosθ)*u[2]*u[1]+sinθ*u[0];
+    T.M(1,2) = (1-cosθ)*u[1]*u[2]+sinθ*u[0];
+    T.M(2,0) = (1-cosθ)*u[2]*u[0]+sinθ*u[1];
+    T.M(2,1) = (1-cosθ)*u[2]*u[1]-sinθ*u[0];
     T.M(2,2) = cosθ + (1-cosθ)*u[2]*u[2];
 
     // replace θ with -θ for inverse
     T.M_inv(0,0) = cosθ + (1-cosθ)*u[0]*u[0];
-    T.M_inv(0,1) = (1-cosθ)*u[0]*u[1]+sinθ*u[2];
-    T.M_inv(0,2) = (1-cosθ)*u[0]*u[2]-sinθ*u[1];
-    T.M_inv(1,0) = (1-cosθ)*u[1]*u[0]-sinθ*u[2];
+    T.M_inv(0,1) = (1-cosθ)*u[0]*u[1]-sinθ*u[2];
+    T.M_inv(0,2) = (1-cosθ)*u[0]*u[2]+sinθ*u[1];
+    T.M_inv(1,0) = (1-cosθ)*u[1]*u[0]+sinθ*u[2];
     T.M_inv(1,1) = cosθ + (1-cosθ)*u[1]*u[1];
-    T.M_inv(1,2) = (1-cosθ)*u[1]*u[2]+sinθ*u[0];
-    T.M_inv(2,0) = (1-cosθ)*u[2]*u[0]+sinθ*u[1];
-    T.M_inv(2,1) = (1-cosθ)*u[2]*u[1]-sinθ*u[0];
+    T.M_inv(1,2) = (1-cosθ)*u[1]*u[2]-sinθ*u[0];
+    T.M_inv(2,0) = (1-cosθ)*u[2]*u[0]-sinθ*u[1];
+    T.M_inv(2,1) = (1-cosθ)*u[2]*u[1]+sinθ*u[0];
     T.M_inv(2,2) = cosθ + (1-cosθ)*u[2]*u[2];
     return T;
   }
@@ -311,6 +313,17 @@ constexpr transform operator<<(transform const &T1, transform const &T2)
   T.M_inv = T1.M_inv*T2.M_inv;
   return T;
 }
+
+/// @brief transmission direction for relative ior (ηo/ηi), normal n
+/// @warning ASSUMES o and n are unit vectors in the same hemisphere
+constexpr ℝ3 transmit(ℝ3 const &o, ℝ3 const &n, float ior)
+{
+  float const cos_i = o|n;
+  float const cos_t2 = 1.f-ior*ior*(1.f-cos_i*cos_i);
+  if (cos_t2 < 0.f) { return ℝ3(0.f); } // TIR
+  return -ior*o-(std::sqrtf(cos_t2)-ior*cos_i)*n;
+}
+
 // ** end of spatial **********************************************************
 
 
@@ -326,18 +339,43 @@ struct aabb
 };
 struct triangle
 {
-  ℝ3 x0, x1, x2;
+  uint64_t V[3], E[3], GN;
 };
-struct vertex 
-{
-  vec n;
-};
+
 template <typename T> struct bvh {};
+
+/// @note All vertex data vectors are indexed by the same indices in F
 struct trimeshdata
 {
-  bvh<triangle>         _bvh;
-  std::vector<ℝ3>       V;
-  std::vector<uint32_t> F;
+  aabb bounds;
+  bvh<triangle>         _bvh;  ///< bvh over triangles F
+  std::vector<ℝ3>       V;     ///< vertices
+  std::vector<ℝ3>       N;     ///< vertex normals
+  std::vector<ℝ3>       T;     ///< vertex tangent vectors
+  std::vector<ℝ2>       u;     ///< vertex texture coords
+  std::vector<ℝ3>       E;     ///< edges
+  std::vector<ℝ3>       GN;    ///< face normals
+  std::vector<triangle> F;     ///< faces (triangles)
+  constexpr ℝ3 const& v(uint64_t face, int i) const {return V[F[face].V[i]];}
+  constexpr ℝ3 const& t(uint64_t face, int i) const {return T[F[face].V[i]];}
+  constexpr ℝ2 const& uv(uint64_t face, int i) const {return u[F[face].V[i]];}
+  constexpr ℝ3 const& e(uint64_t face, int i) const {return E[F[face].E[i]];}
+  constexpr ℝ3 const& gn(uint64_t face) const {return GN[face];}
+  constexpr ℝ3 n(uint64_t face, ℝ3 const &b) const
+  { 
+    triangle const &tri = F[face]; 
+    return b[0]*N[tri.V[0]]+b[1]*V[tri.V[1]]+b[2]*V[tri.V[2]]; 
+  }
+  constexpr ℝ3 t(uint64_t face, ℝ3 const &b) const
+  {
+    triangle const &tri = F[face];
+    return b[0]*T[tri.V[0]]+b[1]*T[tri.V[1]]+b[2]*T[tri.V[2]];
+  }
+  constexpr ℝ2 uv(uint64_t face, ℝ3 const &b) const
+  {
+    triangle const &tri = F[face];
+    return b[0]*u[tri.V[0]]+b[1]*u[tri.V[1]]+b[2]*u[tri.V[2]];
+  }
 };
 // ** end of structures ***************
 
@@ -409,6 +447,7 @@ struct dirlight : item
 struct spherelight : item
 {
   linRGB radiance;
+  float size;
   sphere _sphere;
 };
 
@@ -432,15 +471,54 @@ struct lambertian : item
 {
   linRGB albedo;
   constexpr linRGB BRDFcosθ(ℝ3 const &i, ℝ3 const &n) const 
-    { return albedo*inv_π<float>*max(i|n,0.f); }
+    { return albedo*inv_π<float>*nl::max(0.f,i|n); }
 };
 struct blinn : item
 {
-  linRGB Kd, Ks, Kt, Le, reflect, transmit;
-  float α, ior;
-  /// @todo add specular lobe
-  constexpr linRGB BSDFcosθ(ℝ3 const &i, ℝ3 const &o, ℝ3 const &n) const 
-    { return Kd*inv_π<float>*max(i|n,0.f); }
+  linRGB Kd, Ks, Kt, Le;
+  float α, ior, p_d, p_spec, w_r, w_t, F0;
+  constexpr void init() 
+  { 
+    p_d    = Kd.luma();
+    w_r    = Ks.luma();
+    w_t    = Kt.luma();
+    p_spec = 1.f-p_d;
+    F0 = (ior*ior-2.f*ior+1.f)/(ior*ior+2.f*ior+1.f);
+  }
+  constexpr float fresnel(float F0, float cos_i) const 
+    { return F0+(1.f-F0)*std::pow(1.f-cos_i,5); }
+  constexpr std::pair<float,float> fresnelSplit(float F) const
+  {
+    float p_r = w_r+F*w_t;
+    float p_t = (1.f-F)*w_t;
+    float const tot = p_r+p_t;
+    p_r/=tot;
+    p_t/=tot;
+    return {p_r, p_t};
+  }
+  constexpr linRGB fdcosθ(float cos_i) const 
+    { return Kd*inv_π<float>*nl::max(0.f,cos_i); }
+  constexpr linRGB frcosθ(float cos_h, float F) const
+    { return (Ks+F*Kt)*(α+2)*.125f*inv_π<float>*std::pow(cos_h,α); }
+  constexpr linRGB ftcosθ(float cos_h_t, float F) const
+    { return Kt*(1-F)*(α+2)*.125f*inv_π<float>*std::pow(cos_h_t,α); }
+  constexpr linRGB BSDFcosθ(
+    ℝ3 const &i, ℝ3 const &o, ℝ3 const &n, bool front) const 
+  { 
+    float const η = front ? 1.f/ior : ior;
+    float const cos_i = i|n;
+    float const cos_o = o|n;
+    float const F = fresnel(F0, cos_o);
+    if (cos_i>0.f)
+      { return fdcosθ(cos_i) + frcosθ((i+o).normalized()|n,F); } 
+    else { return ftcosθ(-(η*i+o).normalized()|n,F); }
+  }
+  /// @brief returns p(i|diffuse sampled)
+  constexpr float fdiProb(float cos_i) const 
+    { return std::abs(cos_i)*inv_π<float>; }
+  /// @brief returns p(h|conditions)
+  constexpr float blinnhProb(float cos_h) const 
+    { return std::pow(std::abs(cos_h),α+1)*(α+1)*.5f*inv_π<float>; }
 };
 struct microfacet : item
 {
@@ -459,11 +537,12 @@ constexpr linRGB BxDFcosθ(
   Material const &mat, 
   ℝ3 const &i, 
   ℝ3 const &o, 
-  ℝ3 const &n)
+  ℝ3 const &n,
+  bool front)
 {
   return std::visit(Overload{
     [&](lambertian const &mat){return mat.BRDFcosθ(i,n);},
-    [&](blinn const &mat)     {return mat.BSDFcosθ(i,o,n);},
+    [&](blinn const &mat)     {return mat.BSDFcosθ(i,o,n,front);},
     [](auto const &){return linRGB(1.f,0.f,0.f);}},
     mat);
 }
@@ -504,11 +583,11 @@ struct hitinfo
 {
   float z = UB<float>;
   ℝ3 p;
-  ℝ3 n;
-  ℝ3 tangent;
+  basis F; ///< coordinate frame at hit point
   bool front;
   materialidx mat;
   objectidx obj;
+  constexpr ℝ3 n() const { return front ? F.z : -F.z; }
 };
 
 struct camera 
@@ -521,7 +600,7 @@ struct camera
   void init()
   {
     // assumes focal distance 1
-    Δ = 2*D*tanf32(fov*π<float>/360)/height;
+    Δ = 2*D*tanf32(.5f*deg2rad(fov))/height;
     h = Δ*height;
     w = Δ*width;
   }
@@ -548,7 +627,7 @@ struct scene
 namespace intersect
 { // ** nl::cg::intersect *****************************************************
 
-constexpr float BIAS = ε<float>;
+constexpr float BIAS = constexprSqrt(ε<float>);
 
 /// @brief Sphere-Ray intersection
 /// @param s sphere to intersect
@@ -557,46 +636,140 @@ constexpr float BIAS = ε<float>;
 /// @return true on intersection, otherwise false
 constexpr bool sphere(cg::sphere const &s, ray const &w_ray, hitinfo &hinfo)
 { 
-  // convert ray to local space
   ray const l_ray = s.T.toLocal(w_ray);
 
   // descriminant of ray-sphere intersection equation
   float const a = l_ray.u|l_ray.u;
-  float const b = 2*(l_ray.p|l_ray.u);
+  float const b = 2*(l_ray.p|w_ray.u);
   float const c = (l_ray.p|l_ray.p)-1.f;
   float const Δ = b*b - 4*a*c;
-  if (Δ < BIAS) [[likely]] { return false; }
+  if (Δ < .1f*BIAS) [[likely]] { return false; }
 
   // otherwise return closest non-negative t
-  float const inv_2a = 1.f/(2.f*a);
+  float const inv_2a = .5f/a;
   float const tp = (-b + std::sqrtf(Δ))*inv_2a;
   float const tm = (-b - std::sqrtf(Δ))*inv_2a;
   float t = tm;
-  if (tm < BIAS)   [[unlikely]] { t=tp; }        // check for hit too close
-  if (t  < BIAS)   [[unlikely]] { return false; }
-  if (hinfo.z < t) [[unlikely]] { return false; } // check for closest hit
+  if (tm < BIAS) [[unlikely]] { t=tp; } // hit too close
+  if (t  < BIAS)   { return false; }    // hit behind ray origin
+  if (hinfo.z < t) { return false; }    // closer hit
 
   // ray hits
-  ℝ3   const p = l_ray.p+t*l_ray.u;
-  ℝ3   const n(p);
-  bool const front = (n|l_ray.u) < 0.f;
+  ℝ3 const p = l_ray(t);
+  ℝ3 const n = s.T.toWorld(normal(p));
+  bool const front = (n|w_ray.u) < 0.f;
 
   // (θ,φ) parameterization for tangent (and bitangent)
-  float const sinθ = std::sqrtf(1.f-p[2]*p[2]);
-  float const φ = atan2f32(p[1],p[0]);
-  ℝ3 const t_vec = {-sinθ*sinf(φ),sinθ*cosf(φ),0.f};
+  float const cosθ = n[2];
+  float const sinθ = std::sqrtf(1.f-cosθ*cosθ);
+  float const φ = atan2f32(n[1],n[0]);
+  float const cosφ = cosf(φ);
+  float const sinφ = sinf(φ);
+  ℝ3 const t_vec = {-sinθ*sinφ,sinθ*cosφ,0.f};
+  ℝ3 const b_vec = {cosθ*cosφ,cosθ*sinφ,-sinθ};
 
-  // populate hitinfo in world space
+  // populate hinfo in world space
   hinfo.z = t;
   hinfo.p = s.T.toWorld(pnt(p));
-  hinfo.n = s.T.toWorld(normal(n));
-  hinfo.tangent = s.T.toWorld(vec(t_vec));
+  hinfo.F.x = t_vec;
+  hinfo.F.y = b_vec;
+  hinfo.F.z = n;
   hinfo.front = front;
   hinfo.mat = s.mat;
   hinfo.obj = s.obj;
   return true;
 }
 // ************************************
+
+/// @brief Plane-Ray intersection
+constexpr bool plane(cg::plane const &p, ray const &w_ray, hitinfo &hinfo)
+{
+  ray const l_ray = p.T.toLocal(w_ray);
+  float const t = -l_ray.p[2] / l_ray.u[2];
+  ℝ3 const x = l_ray(t);
+  if (x[0]<-1.f || x[0]>1.f || x[1]<-1.f || x[1]>1.f || t<BIAS || t>hinfo.z) 
+    [[likely]] { return false; } // ray misses
+  
+  // populate hinfo in world space
+  hinfo.z = t;
+  hinfo.p = p.T.toWorld(pnt(x));
+  hinfo.F.z = p.T.toWorld(normal({0.f,0.f,1.f})).normalized();
+  hinfo.F.x = p.T.toWorld(vec({0.f,1.f,0.f})).normalized();
+  hinfo.F.y = hinfo.F.z^hinfo.F.x;
+  hinfo.front = (w_ray.u|hinfo.F.z) < 0.f;
+  hinfo.mat = p.mat;
+  hinfo.obj = p.obj;
+  return true;
+}
+
+/// @brief aabb intersection
+/// @todo
+
+/// @brief Triangle-Ray intersection
+/// @warning hinfo.mat and hinfo.obj are NOT set
+constexpr bool trimeshdata(
+  uint64_t face, cg::trimeshdata const &mesh, ray const &l_ray, hitinfo &hinfo)
+{
+  ℝ3 const &v0 = mesh.v(face,0);
+  ℝ3 const &v1 = mesh.v(face,1);
+  ℝ3 const &v2 = mesh.v(face,2);
+  ℝ3 const &e0 = mesh.e(face,0);
+  ℝ3 const &e1 = mesh.e(face,1);
+  ℝ3 const &e2 = mesh.e(face,2);
+  ℝ3 const &gn = mesh.gn(face);
+  ℝ3 const m(l_ray.p^l_ray.u);
+  float const D = l_ray.u|gn;
+  if (std::abs(D)<.1f*BIAS) [[unlikely]] { return false; } // parallel
+  float const s0 = (l_ray.u|(v0^v1)) + (m|e0);
+  float const s1 = (l_ray.u|(v1^v2)) + (m|e1);
+  float const s2 = (l_ray.u|(v2^v0)) + (m|e2);
+  if (s0*D<-BIAS || s1*D<-BIAS || s2*D<-BIAS) [[likely]] 
+    { return false; } // not in triangle
+  float const t = ((v0-l_ray.p)|gn)/D;
+  if (t<0.f || hinfo.z < t) { return false; } // behind ray or not closest hit
+
+  // barycentric coordinates
+  float const inv_D = 1.f/D;
+  ℝ3 const b({s0*inv_D, s1*inv_D, s2*inv_D});
+
+  // populate hinfo
+  hinfo.z = t;
+  hinfo.p = l_ray(t);
+  hinfo.F.z = mesh.n(face,b);
+  hinfo.F.x = mesh.t(face,b);
+  hinfo.front = (gn|l_ray.u)<0.f;
+  return true;
+}
+
+
+/// @brief Mesh-Ray Intersection
+constexpr bool trimesh(
+  cg::trimesh const tmesh, 
+  ray const &w_ray, 
+  cg::scene const &sc, 
+  hitinfo &hinfo)
+{
+  bool hit_any = false;
+  auto const &mesh = std::get<cg::trimeshdata>(sc.meshes[tmesh.mesh]);
+  int n_faces = mesh.F.size();
+  ray const l_ray = tmesh.T.toLocal(w_ray);
+
+  /// @todo aabb check
+
+
+  /// @todo bvh acceleration
+  for (int i=0;i<n_faces;i++) { hit_any|=trimeshdata(i, mesh, l_ray, hinfo); }
+
+  // convert hinfo to world-space
+  hinfo.p   = tmesh.T.toWorld(pnt(hinfo.p));
+  hinfo.F.z = tmesh.T.toWorld(normal(hinfo.F.z));
+  hinfo.F.x = tmesh.T.toWorld(vec(hinfo.F.x));
+  hinfo.F.y = hinfo.F.z^hinfo.F.x;
+  hinfo.mat = tmesh.mat;
+  hinfo.obj = tmesh.obj;
+  return hit_any;
+}
+
 
 /// @brief finds the intersection closest to the ray origin in the scene
 /// @param sc scene to search for intersection in
@@ -616,7 +789,9 @@ constexpr bool scene(
   {
     if (i==skip) continue;
     const bool hit = std::visit(Overload{
-      [&](cg::sphere const &s){return sphere(s, r, h);},
+      [&](cg::sphere const &s){return sphere(s,r,h);},
+      [&](cg::plane const &p){return plane(p,r,h);},
+      [&](cg::trimesh const &m){return trimesh(m,r,sc,h);},
       [] (auto const &) {return false;}},
       sc.objects[i]);
     hit_any |= hit;
@@ -650,6 +825,9 @@ inline void camera(cg::camera const &c, ℝ2 const &uv, info<ray> &info, RNG &rn
   info.val = {worldkl, (worldij-worldkl).normalized()};
 }
 
+// ************************************
+/// @name light sampling
+
 /// @brief uniform random light from a scene
 inline void lights(
   list<Light> const &lights, 
@@ -673,10 +851,8 @@ inline void spherelight(
   // compute probability for ωi
   ℝ3 const L = sl._sphere.T.pos()-hinfo.p;
   float const dist2 = L|L;
-  float const size = bra::column<3>(sl._sphere.T.M,0).l2();
-  float const sr = (1.f-std::sqrtf(1.f-size*size/dist2));
-  float const Ω = 2*π<float>*sr;
-  info.prob = 1.f/Ω;
+  float const sr = (1.f-std::sqrtf(1.f-sl.size*sl.size/dist2));
+  info.prob = 0.5f/(π<float>*sr);
 
   // sample direction in projection of sphere light onto sphere
   basis const base = orthonormalBasisOf(L);
@@ -687,10 +863,23 @@ inline void spherelight(
   info.val = ωi;
 
   // get L(ωi)
-  hitinfo unused;
+  hitinfo temp;
+  temp.z = std::sqrtf(dist2);
   float const shadowing = 
-    intersect::scene(sc,{hinfo.p, ωi},unused,sl._sphere.obj) ? 0.f : 1.f;
+    intersect::scene(sc,{hinfo.p, ωi},temp,sl._sphere.obj) ? 0.f : 1.f;
   info.mult = sl.radiance*shadowing;
+}
+/// @brief probability that a ray (direction from a hit point) could be sampled
+inline float probForSphereLight(cg::spherelight const &l, ray const &r)
+{
+  // compute probability if ray intersects
+  ℝ3 const L = l._sphere.T.pos()-r.p;
+  float const dist2 = L|L;
+  float const sr = (1.f-std::sqrtf(1.f-l.size*l.size/dist2));
+  float const prob = .5f/(π<float>*sr);
+
+  hitinfo unused;
+  return intersect::sphere(l._sphere, r, unused) ? prob : 0.f;
 }
 
 /// @brief light sampling dispatch
@@ -706,6 +895,185 @@ constexpr void light(
     [](auto const &){}
   }, *l);
 }
+
+/// @brief probability of a light generating a direction as a sample
+constexpr float probForLight(
+  Light const *l,
+  ray const &r)
+{
+  return std::visit(Overload{
+      [&](cg::spherelight const &sl){return probForSphereLight(sl,r);},
+      [](auto const &){return 0.f;}
+    }, *l);
+}
+// ** end of light sampling ***********
+
+
+// ************************************
+/// @name material sampling
+
+/// @brief cosine weighted sample of lambertian brdf
+inline bool lambertiani(
+  cg::lambertian const &mat,
+  hitinfo const &hinfo,
+  info<ℝ3,linRGB> &info,
+  RNG &rng,
+  float p)
+{
+  // russian roulette chance
+  float const ξ = rng.flt();
+  if (ξ>p) { return false; }
+
+  // generate outgoing direction and fill probability
+  ℝ3 dir = stoch::CosHemi(rng.flt(),rng.flt());
+  if (!hinfo.front) { dir[2]*=-1; } // flip to correct hemisphere if needed
+  ℝ3 i = hinfo.F.toBasis(dir);
+  info.prob = p*std::abs(dir[2])*inv_π<float>;
+  info.val = i;
+
+  // evaluate BRDFcosθ
+  info.mult = mat.BRDFcosθ(i,hinfo.n());
+  info.weight = mat.albedo/p;
+  return true;
+}
+/// @brief probability of lambertian generating the sample direction
+inline float probForLambertian(
+  hitinfo const &hinfo, ℝ3 const &i, ℝ3 const &o, float p)
+{ 
+  ℝ3 const n = hinfo.n();
+  float const cos_i = i|n;
+  if ((i|n)<0.f || (o|n)<0.f) return 0.f;
+  return p*cos_i*inv_π<float>;
+}
+
+/// @brief Blinn half-vector sample
+constexpr ℝ3 blinnh(float α, float x0, float x1)
+{
+  float const cosθ = std::pow(1.f-x0, 1.f/(α+1.f));
+  float const sinθ = std::sqrtf(1.f-cosθ*cosθ);
+  const float φ    = 2.f*π<float>*x1;
+  return {sinθ*cosf(φ), sinθ*sinf(φ), cosθ};
+}
+
+/// @brief samples blinn material for an incoming direction
+inline bool blinni(
+  cg::blinn const &b, 
+  hitinfo const &hinfo,
+  ℝ3 const &o,
+  info<ℝ3,linRGB> &info, 
+  RNG &rng, 
+  float p)
+{
+  float const lobe = rng.flt();
+  if (lobe>=p) { return false; }
+  
+  float const pp_d = p*b.p_d; float const pp_spec = p*b.p_spec;
+
+  if (lobe<pp_spec)
+  { // specular sample
+    // sample half vector, split on Fresnel
+    float const η = hinfo.front ? 1.f/b.ior : b.ior;
+    ℝ3 ω, h, i_R, i_T;
+    ω = blinnh(b.α,rng.flt(),rng.flt());
+    if (!hinfo.front) { ω[2]*=-1; } // flip half vector to outgoing hemisphere
+    h = hinfo.F.toBasis(ω);
+    i_R = bra::reflect(o,h);
+    i_T = transmit(o,h,η); // returns {0,0,0} if TIR
+    
+    /// @todo, compare with transmitted Fresnel split
+    float const cos_o = o|h;
+    float F = b.fresnel(b.F0,cos_o);
+    if (i_T[0]==0.f) { F=1.f; } // TIR, all reflection
+    auto [p_r, p_t] = b.fresnelSplit(F);
+
+    if (lobe<pp_spec*p_r)
+    { // specular sample
+      // p(sample)p(spec|sample)p(r|spec)p(i|r)
+      info.prob = pp_spec*p_r*b.blinnhProb(ω[2])*.25f;
+      info.val  = i_R;
+      info.mult = b.frcosθ(ω[2],F);
+      // frcosθ/p(i)
+      info.weight = (b.Ks+b.Kt*F)*(b.α+2)/(pp_spec*p_r*std::abs(ω[2])*(b.α+1));
+      return true;
+    } else
+    { // transmissive sample
+      // float const cos_it = -h|i_T;
+      // float const J = cos_o/((cos_it+η*cos_o)*(cos_it+η*cos_o));
+      info.prob = pp_spec*p_t*b.blinnhProb(ω[2])*.25f;
+      info.val  = i_T;
+      info.mult = b.ftcosθ(ω[2], F);
+      info.weight = b.Kt*(1-F)*(b.α+2)/(pp_spec*p_t*std::abs(ω[2])*(b.α+1));
+      return true;
+    }
+  } else if (lobe<pp_spec+pp_d)
+  { // diffuse lobe sample
+    ℝ3 dir = stoch::CosHemi(rng.flt(), rng.flt());
+    if (!hinfo.front) { dir[2]*=-1; }
+    ℝ3 const i = hinfo.F.toBasis(dir);
+    info.prob = pp_d*b.fdiProb(dir[2]);
+    info.val = i;
+    info.mult = b.fdcosθ(dir[2]);
+    info.weight = b.Kd/pp_d;
+    return true;
+  }
+  return false;
+}
+/// @brief probability of blinn generating the sample direction
+inline float probForBlinn(
+  blinn const &b, 
+  hitinfo const &hinfo, 
+  ℝ3 const &o,
+  ℝ3 const &i, 
+  float p)
+{
+  ℝ3 const n = hinfo.n();
+  float const cos_i = i|n;
+  float const cos_o = o|n;
+  float const F = b.fresnel(b.F0, cos_o);
+  auto [p_r, p_t] = b.fresnelSplit(F);
+  if (cos_i>0.f)
+  { // reflection/diffuse
+    ℝ3 const h = (i+o).normalized();
+    // p(i) = p*(p(d)p(i|d)+p(spec)*p(r|spec)*p(i|r))
+    return p*(b.p_d*b.fdiProb(cos_i)+b.p_spec*p_r*b.blinnhProb(h|n)*.25f);
+  } else
+  { // transmition
+    float const ior = hinfo.front ? 1.f/b.ior : b.ior;
+    if ((1.f-ior*ior*(1.f-cos_i*cos_i)) < 0.f) { return 0.f; } // should be tir
+    // p(i) = pp(spec)p(t|spec)p(i|t)
+    ℝ3 const h = (ior*i+o).normalized();
+    return p*b.p_spec*p_t*b.blinnhProb(h|n)*.25f;
+  }
+}
+
+
+/// @brief material incoming light direction sampling dispatch
+constexpr bool materiali(
+  Material const *mat,
+  hitinfo const &hinfo,
+  ℝ3 const &o,
+  info<ℝ3,linRGB> &info,
+  RNG &rng,
+  float p)
+{
+  return std::visit(Overload{
+      [&](cg::lambertian const &l){return lambertiani(l,hinfo,info,rng,p);},
+      [&](cg::blinn const &b){return blinni(b,hinfo,o,info,rng,p);},
+      [](auto const &){return false;}
+    }, *mat);
+}
+
+/// @brief material sample evaluation dispatch 
+constexpr float probForMateriali(
+  Material const *mat, hitinfo const &hinfo, ℝ3 const &i, ℝ3 const &o, float p)
+{
+  return std::visit(Overload{
+      [&](cg::lambertian const &){return probForLambertian(hinfo,i,o,p);},
+      [&](cg::blinn const &m){return probForBlinn(m,hinfo,i,o,p);},
+      [](auto const&){return 0.f;}
+    }, *mat);
+}
+// ** end of material sampling ********
 
 } // ** end of namespace sample ***********************************************
 
@@ -788,6 +1156,11 @@ inline void loadSphereLight(
   linRGB radiance;
   loadℝ3(radiance.c, j.at("radiance"));
   loadTransform(s.T, j.at("transform"));
+  float const sx = bra::column<3>(s.T.M,0).l2();
+  float const sy = bra::column<3>(s.T.M,1).l2();
+  float const sz = bra::column<3>(s.T.M,2).l2();
+  assert(std::abs(sx-sy)<0.01);
+  assert(std::abs(sx-sz)<0.01); // check for uniform scaling
   std::string name = "emitter_"+radiance.toString();
   materialidx mat = mats.idxOf(name);
   if (mat==mats.size()) 
@@ -796,6 +1169,7 @@ inline void loadSphereLight(
     mats.emplace_back(std::in_place_type<emitter>, m);
   }
   s.mat = mat;
+  light.size = sx;
   light.radiance = radiance;
   light._sphere = s;
 }
@@ -827,6 +1201,7 @@ inline void loadLights(
       spherelight light;
       light.name=name;
       loadSphereLight(light, j_light, scene.materials);
+      light._sphere.obj = scene.objects.size();
       scene.objects.emplace_back(std::in_place_type<sphere>,light._sphere);
       scene.lights.emplace_back(std::in_place_type<spherelight>,light);
       break;
@@ -841,6 +1216,7 @@ inline void loadLights(
 
 /// @todo
 inline void loadGroup() {}
+
 inline void loadSphere(sphere &s, json const &j, list<Material> const &mats)
 {
   transform T;
@@ -848,6 +1224,7 @@ inline void loadSphere(sphere &s, json const &j, list<Material> const &mats)
   s.T = T;
   s.mat = mats.idxOf(j.at("material").get<std::string>());
 }
+
 inline void loadPlane(plane &p, json const &j, list<Material> const &mats) 
 {
   transform T;
@@ -855,8 +1232,11 @@ inline void loadPlane(plane &p, json const &j, list<Material> const &mats)
   p.T = T;
   p.mat = mats.idxOf(j.at("material").get<std::string>());
 }
+
 /// @todo
 inline void loadTriMesh(trimesh &m, json const &j, list<Material> const &mats);
+
+/// @brief loads all scene objects
 inline void loadObjects(
   list<Object> &objs, 
   json const &j, 
@@ -922,10 +1302,9 @@ inline void loadBlinn(blinn &m, json const &j)
   m.Ks = Ks;
   m.Kt = Kt;
   m.Le = Le;
-  m.reflect = reflect;
-  m.transmit = transmit;
   m.α = alpha;
   m.ior = ior;
+  m.init();
 }
 /// @todo
 inline void loadMicrofacet(microfacet &m, json const &j) {(void)m; (void)j;}
